@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "mdp": {
+      "source": "varunpandey0502/markdown-projects",
+      "sourceType": "github",
+      "computedHash": "4156469850eb2cea485e6369de8d4d7e308f9421f55ea797902f986fb61d3fcd"
+    }
+  }
+}

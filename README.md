@@ -38,10 +38,14 @@ mdp issue list
 mdp milestone list
 ```
 
-Optional: install the upstream skill for agents (see [Getting Started](https://www.markdownprojects.com/getting-started)):
+### Cursor agent skill (`mdp`)
+
+This repo vendors the upstream **[Markdown Projects](https://www.markdownprojects.com/)** skill under **[`.cursor/skills/mdp/`](.cursor/skills/mdp/)** (Cursor discovers skills from [`.cursor/skills`](https://cursor.com/docs/context/skills)). To refresh or reinstall from upstream (non-interactive, copy mode):
 
 ```bash
-npx skills add varunpandey0502/markdown-projects/
+npx skills add varunpandey0502/markdown-projects -a cursor -y --copy --skill mdp
 ```
+
+The `skills` CLI may install to `.agents/skills/` first; move **`mdp/`** to **`.cursor/skills/mdp/`** and rely on **`.gitignore`** for `.agents/` if you re-run the command. Global skills (not used here) would live under `~/.cursor/skills/`.
 
 Commit **`.mdp/`** with git so planning stays versioned alongside `docs/`.
