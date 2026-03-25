@@ -1,0 +1,148 @@
+{
+  "issues": {
+    "prefix": "ISS",
+    "statuses": {
+      "triage": [],
+      "backlog": [
+        {
+          "name": "Backlog",
+          "description": "Not yet triaged"
+        }
+      ],
+      "unstarted": [
+        {
+          "name": "To Do",
+          "description": "Ready to be worked on"
+        }
+      ],
+      "started": [
+        {
+          "name": "In Progress",
+          "description": "Actively being worked on"
+        }
+      ],
+      "completed": [
+        {
+          "name": "Done",
+          "description": "Work completed"
+        }
+      ],
+      "canceled": []
+    },
+    "priorities": [
+      {
+        "name": "None",
+        "description": "No priority assigned"
+      },
+      {
+        "name": "Low",
+        "description": "Low priority"
+      },
+      {
+        "name": "Medium",
+        "description": "Medium priority"
+      },
+      {
+        "name": "High",
+        "description": "High priority"
+      },
+      {
+        "name": "Urgent",
+        "description": "Requires immediate attention"
+      }
+    ],
+    "labels": [
+      {
+        "name": "urgent",
+        "description": "Urgent item"
+      },
+      {
+        "name": "documentation",
+        "description": "Documentation related"
+      },
+      {
+        "name": "question",
+        "description": "Question or discussion"
+      }
+    ],
+    "types": [
+      {
+        "name": "task",
+        "description": "General work item"
+      },
+      {
+        "name": "milestone-task",
+        "description": "Milestone deliverable"
+      },
+      {
+        "name": "review",
+        "description": "Review task"
+      }
+    ]
+  },
+  "milestones": {
+    "prefix": "M",
+    "statuses": {
+      "backlog": [],
+      "planned": [
+        {
+          "name": "Planning",
+          "description": "Defining scope and goals"
+        }
+      ],
+      "in_progress": [
+        {
+          "name": "Active",
+          "description": "In progress"
+        },
+        {
+          "name": "On Hold",
+          "description": "Temporarily paused"
+        }
+      ],
+      "completed": [
+        {
+          "name": "Completed",
+          "description": "All goals met"
+        }
+      ],
+      "canceled": []
+    },
+    "priorities": [
+      {
+        "name": "None",
+        "description": "No priority assigned"
+      },
+      {
+        "name": "Low",
+        "description": "Low priority"
+      },
+      {
+        "name": "Medium",
+        "description": "Medium priority"
+      },
+      {
+        "name": "High",
+        "description": "High priority"
+      },
+      {
+        "name": "Urgent",
+        "description": "Requires immediate attention"
+      }
+    ],
+    "labels": [
+      {
+        "name": "urgent",
+        "description": "Urgent item"
+      },
+      {
+        "name": "documentation",
+        "description": "Documentation related"
+      },
+      {
+        "name": "question",
+        "description": "Question or discussion"
+      }
+    ]
+  }
+}

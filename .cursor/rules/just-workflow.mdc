@@ -1,0 +1,11 @@
+---
+description: Use Just and ./script/bootstrap for setup; Markdown Projects for issues
+alwaysApply: true
+---
+
+# Planner repo: Just and Markdown Projects
+
+- After clone on Debian/Ubuntu, prefer **`./script/bootstrap`** once so **Just** is installed via `apt` (when possible) and **`just bootstrap`** runs.
+- For setup, tests, and tooling, prefer **`just <recipe>`** (see root **`justfile`**: `just --list`). Do not invent one-off install steps when a recipe already exists; extend the **`justfile`** instead.
+- Typical flows: **`just setup`** after clone, **`just update`** after pulling, **`just test`** / **`just cibuild`** for checks.
+- For issues and milestones in this repo, use **[Markdown Projects](https://www.markdownprojects.com/)** — **`mdp`** CLI and **`.mdp/`** — as installed by **`just bootstrap`**, not ad-hoc issue files elsewhere.

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+if command -v just >/dev/null 2>&1; then
+  exec just bootstrap
+fi
+
+if command -v apt-get >/dev/null 2>&1; then
+  if [ "$(id -u)" -eq 0 ]; then
+    apt-get update
+    apt-get install -y just
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y just
+  else
+    echo "Install Just, then re-run: sudo apt-get update && sudo apt-get install -y just" >&2
+    echo "Other platforms: https://github.com/casey/just#installation" >&2
+    exit 1
+  fi
+else
+  echo "Install Just from https://github.com/casey/just#installation then run: just bootstrap" >&2
+  exit 1
+fi
+
+if ! command -v just >/dev/null 2>&1; then
+  echo "ERROR: just not found after install attempt." >&2
+  exit 1
+fi
+
+exec just bootstrap
