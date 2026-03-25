@@ -2,7 +2,7 @@
 id: ISS-6
 title: Run htmltest on Hugo ./public after build in CI
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,9 +15,23 @@ parent: null
 relatedTo:
   - ISS-24
 checklist: []
-log: []
+log:
+  - date: 2026-03-25
+    note: >-
+      Implementation complete. Added .htmltest.yml, htmltest step in
+      .github/workflows/hugo.yml, content/about.md, content/posts/contact.md,
+      and .gitignore entry for tmp/.htmltest/. Two DoIt theme overrides were
+      required for Hugo 0.159 compatibility:
+      (1) layouts/partials/init.html — removed .Site.Author check (field
+      deleted in Hugo 0.159, causes errorf in theme);
+      (2) layouts/partials/function/resource.html — added guard to skip
+      resources.Get when the destination path is "/" or empty, which otherwise
+      causes "Failed to publish Resource: open .../public: is a directory"
+      when any markdown content contains a link to the site root [text](/).
+      htmltest config: CheckExternal false, IgnoreEmptyHref true (theme
+      generates blank href attrs for empty series/category links).
 createdAt: 2026-03-25T03:01:35.312Z
-updatedAt: 2026-03-25T03:24:25.907Z
+updatedAt: 2026-03-25T04:10:03.941Z
 ---
 
 ## Requirement
