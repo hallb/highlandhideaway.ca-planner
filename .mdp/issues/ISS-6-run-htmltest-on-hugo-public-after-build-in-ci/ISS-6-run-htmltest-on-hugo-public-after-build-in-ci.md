@@ -1,6 +1,6 @@
 ---
 id: ISS-6
-title: Run htmltest or muffet on Hugo ./public after build in CI
+title: Run htmltest on Hugo ./public after build in CI
 type: task
 status: To Do
 priority: High
@@ -12,7 +12,8 @@ spent: null
 dueDate: null
 blockedBy: []
 parent: null
-relatedTo: []
+relatedTo:
+  - ISS-24
 checklist: []
 log: []
 createdAt: 2026-03-25T03:01:35.312Z
@@ -21,7 +22,7 @@ updatedAt: 2026-03-25T03:24:25.907Z
 
 ## Requirement
 
-After every successful `hugo --minify`, validate generated HTML for **broken internal links** using **htmltest** (or equivalent) in CI.
+After every successful `hugo --minify`, validate generated HTML for **broken internal links** using **[htmltest](https://github.com/wjdp/htmltest)** in CI.
 
 ### Intended implementation (reverted locally)
 
@@ -32,3 +33,4 @@ After every successful `hugo --minify`, validate generated HTML for **broken int
 
 - First run may require fixing real dead links (e.g. `/about/`, `/posts/contact/`) or tuning ignores — track under separate content issues.
 - Related: local **justfile** recipe + `.htmltest.yml` (see ISS-18).
+- **Production** link checks (e.g. crawlers such as Muffet) are out of scope here; see **ISS-24**.
