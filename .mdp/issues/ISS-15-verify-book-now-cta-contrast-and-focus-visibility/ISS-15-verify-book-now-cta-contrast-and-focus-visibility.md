@@ -2,7 +2,7 @@
 id: ISS-15
 title: Verify Book now CTA contrast and focus visibility
 type: task
-status: To Do
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -14,9 +14,14 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      assets/css/_custom.scss gives .book-cta__link a :focus-visible outline
+      with offset, and the colours are documented against WCAG AA: #1d4ed8 on
+      white is 7.0:1 either way.
 createdAt: 2026-03-25T03:01:37.026Z
-updatedAt: 2026-03-25T03:26:03.070Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

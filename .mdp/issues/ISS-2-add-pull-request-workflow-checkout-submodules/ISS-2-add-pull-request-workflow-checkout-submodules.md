@@ -2,7 +2,7 @@
 id: ISS-2
 title: "Add pull_request workflow: checkout submodules, hugo --minify"
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -14,9 +14,16 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      cloudflare.yml runs on pull_request with submodules: recursive and
+      hugo --minify. The deploy job is guarded by
+      `if: github.event_name != 'pull_request'`, so PRs build and link-check
+      without publishing. Confirmed live: three Dependabot PR runs built and
+      skipped deploy.
 createdAt: 2026-03-25T03:01:30.475Z
-updatedAt: 2026-03-25T03:24:25.284Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

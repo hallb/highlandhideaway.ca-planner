@@ -14,9 +14,15 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      anonymizeIP = true is set. The consent and privacy-notice question is
+      unresolved and now tracked in ISS-28: adopting cookieless Cloudflare Web
+      Analytics would close it by removing what raises it, rather than
+      answering it with a banner.
 createdAt: 2026-03-25T03:01:36.484Z
-updatedAt: 2026-03-25T03:25:09.530Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

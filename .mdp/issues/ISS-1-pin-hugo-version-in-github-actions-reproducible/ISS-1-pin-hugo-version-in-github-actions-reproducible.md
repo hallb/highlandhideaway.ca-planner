@@ -2,7 +2,7 @@
 id: ISS-1
 title: Pin Hugo version in GitHub Actions (reproducible builds)
 type: task
-status: To Do
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -14,9 +14,14 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      Pinned to Hugo 0.159.0 with actions-hugo v3, repo commit 3760091. The
+      pin now lives in .github/workflows/cloudflare.yml; hugo.yml was deleted
+      when GitHub Pages stopped being the deploy target.
 createdAt: 2026-03-25T03:01:30.299Z
-updatedAt: 2026-03-25T03:24:24.895Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

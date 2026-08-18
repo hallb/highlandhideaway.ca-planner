@@ -19,9 +19,13 @@ checklist:
     done: false
   - text: Add justfile recipe test-links (build then htmltest)
     done: false
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      The .htmltest.yml half is done and running in CI. The justfile half is
+      not -- there is still no justfile in the repo.
 createdAt: 2026-03-25T03:09:34.854Z
-updatedAt: 2026-03-25T03:09:34.854Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 Implement local link checking for the Hugo site.

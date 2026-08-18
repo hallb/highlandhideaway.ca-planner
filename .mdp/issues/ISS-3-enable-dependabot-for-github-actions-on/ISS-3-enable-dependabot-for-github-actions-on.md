@@ -2,7 +2,7 @@
 id: ISS-3
 title: Enable Dependabot for GitHub Actions on highlandhideaway.ca site repo
 type: task
-status: To Do
+status: Done
 priority: Low
 labels: []
 assignee: null
@@ -14,9 +14,13 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      Added .github/dependabot.yml, monthly, github-actions. It immediately
+      opened five PRs, which is a fair measure of how stale the actions were.
 createdAt: 2026-03-25T03:01:30.649Z
-updatedAt: 2026-03-25T03:25:09.983Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

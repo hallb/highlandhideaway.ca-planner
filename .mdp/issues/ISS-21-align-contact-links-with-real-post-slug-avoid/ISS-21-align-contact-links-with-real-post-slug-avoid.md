@@ -2,7 +2,7 @@
 id: ISS-21
 title: Align Contact links with real post slug (avoid broken /posts/contact/)
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,9 +15,13 @@ parent: null
 relatedTo:
   - ISS-6
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      Delivered by repo commit ac2d98e -- content/posts/contact.md exists with
+      slug: contact, and htmltest passes across 126 documents.
 createdAt: 2026-03-25T03:25:30.902Z
-updatedAt: 2026-03-25T03:25:30.902Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

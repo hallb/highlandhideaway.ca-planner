@@ -2,7 +2,7 @@
 id: ISS-22
 title: "Hugo 0.15x: override DoIt init partial (remove .Site.Author check)"
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -14,9 +14,15 @@ blockedBy: []
 parent: null
 relatedTo: []
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      Delivered by repo commit ac2d98e -- layouts/partials/init.html overrides
+      the theme's .Site.Author check. A second override,
+      layouts/partials/function/resource.html, was also needed and is not
+      mentioned anywhere in this issue.
 createdAt: 2026-03-25T03:25:42.448Z
-updatedAt: 2026-03-25T03:25:42.448Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement

@@ -16,9 +16,15 @@ relatedTo:
   - ISS-7
   - ISS-6
 checklist: []
-log: []
+log:
+  - date: 2026-08-18
+    note: >-
+      Sharper now that the site is on Cloudflare. Web Analytics (ISS-28) covers
+      traffic and would show an outage by its absence. Link rot on outbound
+      URLs remains uncovered, and there are now eight external links in the
+      content including two Google Maps short links.
 createdAt: 2026-03-25T03:37:03.256Z
-updatedAt: 2026-03-25T03:37:37.505Z
+updatedAt: 2026-08-18T21:55:00.000Z
 ---
 
 ## Requirement
