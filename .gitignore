@@ -1,2 +1,5 @@
 # npx skills add defaults here for Cursor; we keep skills under .cursor/skills/ instead
 .agents/
+
+# Local Grafana credentials (Cloudflare account ID + analytics token)
+grafana/.env

@@ -1,0 +1,29 @@
+# Cloudflare Workers Analytics Engine over its SQL API.
+#
+# $CF_ACCOUNT_ID and $CF_AE_TOKEN are interpolated by Grafana from the
+# container environment (env_file: .env in docker-compose.yml), so no
+# credential is ever written into this file.
+apiVersion: 1
+
+datasources:
+  - name: Cloudflare Analytics Engine
+    uid: cf-analytics-engine
+    type: vertamedia-clickhouse-datasource
+    access: proxy
+    url: https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/analytics_engine/sql
+    isDefault: true
+    editable: true
+    # Cloudflare authenticates with a bearer token header, not basic auth.
+    basicAuth: false
+    withCredentials: false
+    jsonData:
+      dataSourceUrl: https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/analytics_engine/sql
+      # The SQL API takes the query as the request body, which is what the
+      # plugin's POST mode sends. Flip to false if the health check fails.
+      usePOST: true
+      addCorsHeader: false
+      useCompression: false
+      defaultDatabase: ""
+      httpHeaderName1: Authorization
+    secureJsonData:
+      httpHeaderValue1: Bearer $CF_AE_TOKEN

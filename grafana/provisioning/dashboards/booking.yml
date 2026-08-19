@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: highland-hideaway
+    orgId: 1
+    folder: Highland Hideaway
+    type: file
+    disableDeletion: false
+    # Edits made in the UI survive until the file changes on disk; export and
+    # commit anything worth keeping.
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

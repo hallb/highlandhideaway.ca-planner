@@ -27,6 +27,20 @@ just setup
 
 Common recipes: `just bootstrap`, `just setup`, `just update`, `just test`, `just cibuild`.
 
+## Grafana (booking clicks)
+
+The `/go/airbnb` Worker counts booking clicks into a Cloudflare Analytics
+Engine dataset, which has no dashboard of its own. [`grafana/`](grafana/) is a
+local Grafana that reads it over the SQL API:
+
+```bash
+cp grafana/.env.example grafana/.env   # fill in account ID + analytics token
+just grafana                           # http://localhost:3000, admin/admin
+```
+
+See [`grafana/README.md`](grafana/README.md) for the query gotchas (count with
+`SUM(_sample_interval)`, no JOINs, three-month retention).
+
 ## Markdown Projects (MDP)
 
 Operational issues and milestones are tracked with **[Markdown Projects](https://www.markdownprojects.com/)** — plain Markdown under **`.mdp/`** (no database). The CLI is **`mdp`** (installed by **`just bootstrap`** via [Bun](https://bun.sh/)).

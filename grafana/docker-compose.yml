@@ -1,0 +1,44 @@
+# Local Grafana for reading the booking_clicks Analytics Engine dataset.
+#
+# Analytics Engine has no dashboard of its own — the SQL API is the only way
+# to see the rows the Worker writes (see src/worker.js in the sibling site
+# repo). This stack is a saved-query UI over that same API: the Altinity
+# ClickHouse plugin is the one Cloudflare documents, because Analytics Engine
+# speaks ClickHouse-flavoured SQL over plain HTTP and Grafana's own ClickHouse
+# data source wants the native binary protocol the SQL API does not serve.
+#
+# Credentials come from .env (gitignored); copy .env.example to start.
+#
+# GRAFANA_BIND defaults to 0.0.0.0 because this repo is worked on from WSL2:
+# a container published to 127.0.0.1 lands on the WSL VM's own loopback, which
+# a Windows browser cannot reach, so the page never loads. Under WSL2's NAT
+# networking 0.0.0.0 means the VM's eth0 — the Windows host and whatever can
+# route to the VM, not the LAN. On a plain Linux host set GRAFANA_BIND to
+# 127.0.0.1 in .env: the data source proxy holds a Cloudflare token.
+name: hh-grafana
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.0
+    container_name: hh-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_BIND:-0.0.0.0}:${GRAFANA_PORT:-3000}:3000"
+    env_file: .env
+    environment:
+      GF_INSTALL_PLUGINS: vertamedia-clickhouse-datasource
+      # Reachable from the Windows host, so the login stays on. Set
+      # GRAFANA_ADMIN_PASSWORD in .env to something other than admin.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_DEFAULT_THEME: system
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning:ro
+      # Not under /var/lib/grafana, which the named volume owns.
+      - ./dashboards:/etc/grafana/dashboards:ro
+
+volumes:
+  grafana-data:

@@ -71,3 +71,34 @@ server:
 
 console:
     @echo "No project REPL. Use: mdp --help"
+
+# Start local Grafana over the Analytics Engine SQL API (see grafana/README.md).
+grafana:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}/grafana"
+    if [ ! -f .env ]; then
+      cp .env.example .env
+      echo "Created grafana/.env — fill in CF_ACCOUNT_ID and CF_AE_TOKEN, then re-run." >&2
+      exit 1
+    fi
+    if ! grep -q '^CF_AE_TOKEN=.\+' .env; then
+      echo "ERROR: CF_AE_TOKEN is empty in grafana/.env" >&2
+      exit 1
+    fi
+    docker compose up -d
+    echo "Grafana: http://localhost:3000 (admin/admin) -> Dashboards -> Highland Hideaway -> Booking clicks"
+
+# Stop local Grafana (keeps the volume, so edits survive).
+grafana-down:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}/grafana"
+    docker compose down
+
+# Tail Grafana logs.
+grafana-logs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}/grafana"
+    docker compose logs -f grafana

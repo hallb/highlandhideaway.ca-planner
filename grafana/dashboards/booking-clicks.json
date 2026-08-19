@@ -1,0 +1,137 @@
+{
+  "uid": "hh-booking-clicks",
+  "title": "Booking clicks",
+  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country.",
+  "tags": ["highland-hideaway", "cloudflare"],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Clicks in range",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "text", "value": null } ] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Clicks over time by page",
+      "description": "One series per ?src= value. Counted with SUM(_sample_interval), which is how Analytics Engine undoes sampling.",
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 0 },
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "lineWidth": 1, "stacking": { "mode": "normal", "group": "A" }, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["sum"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "time_series",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    $timeSeries AS t,\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'\nGROUP BY src, t\nORDER BY t"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Clicks by page",
+      "description": "ISS-29 acceptance: two clicks from different pages must be distinguishable by blob1.",
+      "gridPos": { "h": 9, "w": 10, "x": 0, "y": 6 },
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
+      "options": { "showHeader": true, "sortBy": [ { "displayName": "clicks", "desc": true } ] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'\nGROUP BY src\nORDER BY clicks DESC"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Recent clicks",
+      "description": "Raw rows. This is the panel that answers ISS-29: click a Book now button and the row should appear here within about a minute.",
+      "gridPos": { "h": 9, "w": 14, "x": 10, "y": 6 },
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    timestamp,\n    blob1 AS src,\n    blob2 AS referer,\n    blob3 AS country\nFROM booking_clicks\nWHERE $timeFilter\nORDER BY timestamp DESC\nLIMIT 100"
+        }
+      ]
+    }
+  ]
+}
