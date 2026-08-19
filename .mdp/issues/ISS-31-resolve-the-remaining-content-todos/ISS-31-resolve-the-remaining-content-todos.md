@@ -14,6 +14,7 @@ blockedBy: []
 parent: null
 relatedTo:
   - ISS-30
+  - ISS-27
 checklist:
   - text: Is there a barbecue? The meal plan assumes one, the kitchen page lists none
     done: false
@@ -29,9 +30,15 @@ checklist:
     done: false
   - text: Fill in the Haliburton gallery tour, or leave it draft
     done: false
-log: []
+log:
+  - timestamp: 2026-08-19T04:18:54.074Z
+    author: claude
+    body: |-
+      Sequencing note, 2026-08-19. Content work waits on Search Console data rather than starting from guesses: the property was verified today and query data is useful somewhere between 2026-09-02 and 2026-09-16 (see ISS-27).
+
+      Worth knowing what the audit turned up while the technical SEO was being fixed. The pages are thin — the homepage runs about 218 words, /about/ about 177, and a representative post about 218. For a single rental competing against Airbnb's own listing pages and established Haliburton directories, that is the actual ceiling on ranking, well above anything else on the board. Whatever the queries say, depth on the pages worth ranking is the work.
 createdAt: 2026-08-18T21:55:00.000Z
-updatedAt: 2026-08-18T21:55:00.000Z
+updatedAt: 2026-08-19T04:18:54.322Z
 ---
 
 ## Requirement
