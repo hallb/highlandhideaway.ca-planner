@@ -14,6 +14,7 @@ blockedBy: []
 parent: null
 relatedTo:
   - ISS-25
+  - ISS-31
 checklist:
   - text: Verify a Domain property by TXT record in Cloudflare DNS
     done: false
@@ -21,9 +22,23 @@ checklist:
     done: false
   - text: Check Coverage for "Page with redirect" on any www URLs
     done: false
-log: []
+log:
+  - timestamp: 2026-08-19T04:13:08.609Z
+    author: claude
+    body: |-
+      Cleared the ground for this before it gets set up, since two of the things Search Console reports on were wrong.
+
+      The sitemap advertised 73 URLs, 50 of them auto-generated tag and category pages — navigation outnumbering real content two to one, none of it anything a person searches for. Taxonomy pages now carry noindex, follow and are excluded from the sitemap, which is down to the 23 pages worth ranking. Expect Page indexing to show roughly 50 URLs under "Excluded by 'noindex' tag" once crawling catches up; that is this change working, not a fault.
+
+      robots.txt was never being generated at all. Hugo does not emit one unless enableRobotsTXT is set, so production was serving Cloudflare's managed robots.txt, which blocks AI crawlers but carries no Sitemap line. The theme has always shipped a template containing one; nothing was rendering it. Now set, and the served file is the union of both: Cloudflare appends its content signals to the origin file rather than replacing it.
+
+      Site repo commit 5c9d1f3, deployed and verified live — sitemap 23 URLs, noindex present on /tags/area/, Sitemap line in robots.txt, and the weekly crawl passed 23/23 with 0 errors.
+
+      What is left here is the account work, which needs a person: create the Domain property, add the google-site-verification TXT at Cloudflare (Zone:DNS:Edit — neither token in this project has it), submit sitemap.xml, request indexing on the homepage and the best two or three posts, then import the property into Bing Webmaster Tools while there.
+
+      Worth knowing before reading the first reports: data starts landing in 2-3 days, query data becomes useful at 2-4 weeks, and impressions will start near zero because the site is effectively new to Google. The point of the exercise is the position 8-15 queries — the cheap wins — which is also what should decide the content work in ISS-31.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-18T21:40:00.000Z
+updatedAt: 2026-08-19T04:13:08.901Z
 ---
 
 ## Requirement
