@@ -20,7 +20,7 @@ Other pinned versions, all in `cloudflare.yml`: `HTMLTEST_VERSION` 0.17.0, `WRAN
 - **`enableRobotsTXT = true`.** Hugo emits no `robots.txt` unless asked. Without this, production served Cloudflare's managed file, which carries no `Sitemap` line. Cloudflare appends its content signals to the origin file rather than replacing it, so the served result is the union of both.
 - **Menu:** Guides → `/posts/`, The Property → `/photos/`, About → `/about/`.
 - **Booking:** `params.booking` holds the destination URL, the button text, and the room counts, so the pitch is stated once and every CTA reads from it.
-- **Analytics:** `params.analytics.google.id = "G-M21FZFQ5YJ"`, `anonymizeIP = true`. Whether this stays is open in ISS-28.
+- **Analytics:** `params.analytics.enable = false`. Page analytics is Cloudflare Web Analytics, injected at the edge, so the theme renders no tag. Do not set `params.analytics.cloudflare.token` — it would double-count against the injected beacon. See [ADR-0008](adr/0008-page-analytics.md). Pending merge; GA is still live.
 - **Module mounts:** `static/` is mounted twice, once as `static` and once as `assets`. Images are referenced as plain `/images/foo.jpg` from front matter and from several theme partials, so they must publish verbatim; mounting them as assets as well lets `resources.Get` resolve them for WebP srcsets. Declaring any mount replaces all of Hugo's defaults, which is why seven re-declarations precede the one doing the work.
 - **Goldmark:** `unsafe = true` allows raw HTML in Markdown. See ISS-14 for what that implies if untrusted contributors are ever added.
 - **Build:** `writeStats = true`; `noChmod` and `noTimes` set.

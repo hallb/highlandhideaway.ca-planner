@@ -70,21 +70,26 @@ Analytics Engine has no UI. The only way to read the dataset is its SQL API, whi
 
 ### 2. Page analytics
 
-**Decided 2026-08-20: Cloudflare Web Analytics replaces Google Analytics.** See [ADR-0008](adr/0008-page-analytics.md) and ISS-28.
+**Cloudflare Web Analytics**, on automatic injection. Google Analytics is being removed. See [ADR-0008](adr/0008-page-analytics.md) and ISS-28.
+
+Cloudflare injects the beacon at the edge from the automatic setup on the Web Analytics site. It is not in `./public`, and `hugo.toml` sets no beacon of its own — setting `params.analytics.cloudflare.token` would put a second beacon on the page and double-count every view.
+
+Injection only fires for requests that look like a browser. A plain `curl` shows no beacon, and that absence proves nothing:
+
+```bash
+curl -s https://highlandhideaway.ca/ -H "User-Agent: Mozilla/5.0 ..." \
+  | grep -o "data-cf-beacon='[^']*'"
+```
+
+An earlier version of this document said Cloudflare Web Analytics was not enabled. That was wrong, and it came from checking with a plain `curl`. It had been collecting all along, which means the site was briefly running two analytics products at once.
 
 Cloudflare Web Analytics is free and cookieless. It reports page views, referrers, paths and Core Web Vitals, and has no custom events — which costs nothing here, because conversions go through the Worker rather than through any analytics product.
 
-Dropping GA closes the consent question in ISS-11 by removing what raised it, rather than answering it with a banner and a privacy page. Nothing load-bearing went with it: GA's unique contribution was session and engagement metrics plus historical continuity, and nothing depends on either. The GA property stops collecting and keeps its history.
+Removing GA closes the consent question in ISS-11 by taking away what raised it, rather than answering it with a banner and a privacy page. Nothing load-bearing goes with it: its unique contribution was session and engagement metrics plus historical continuity, and nothing depends on either. The GA property stops collecting and keeps its history.
 
-Configuration is in `hugo.toml`. `params.analytics.enable` stays `true` and now gates Cloudflare; `[params.analytics.cloudflare] token` carries the beacon token. The token is not a secret — it ships in page source by design — so it belongs in the config file rather than in GitHub secrets.
+**GA is still live.** The removal sits on site repo branch `analytics/cloudflare-web-analytics` (commit `9cd661d`), not merged. `params.analytics.enable` goes to `false` there, since with GA gone the theme has nothing left to render.
 
-The beacon is installed manually rather than through Cloudflare's automatic injection, so that the configuration is visible in code review. The reasoning is in ADR-0008, and it is a direct response to the www redirect above: dashboard-only configuration is how that rule went missing.
-
-**Not yet live.** The change sits on site repo branch `analytics/cloudflare-web-analytics` (commit `ff71fba`) with an empty token, and is not merged. GA is still serving in production until it is. An empty token renders no beacon at all, so merging before the token is filled would leave the site with no page analytics rather than a broken tag.
-
-Remaining steps are in ISS-28: create the Web Analytics site, copy the beacon token into `hugo.toml`, merge, confirm the beacon is live and `gtag` is gone, then close ISS-11.
-
-Creating the site through the API needs a token with **Account Settings: Edit**. The existing `CF_AE_TOKEN` is Account Analytics: Read and returns an authentication error against `/accounts/{id}/rum/site_info`. The dashboard needs no new token.
+The dashboard settings this depends on are listed in `wrangler.toml`, alongside the missing Redirect Rule. Nothing in CI can tell you a dashboard setting was removed, so that list is the only record.
 
 ### 3. Edge analytics — always available
 

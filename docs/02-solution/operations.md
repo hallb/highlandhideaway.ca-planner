@@ -76,6 +76,6 @@ If the site is up but bookings look wrong, check the canary job before assuming 
 At least one maintainer should hold:
 
 - The **Cloudflare** account (Workers, DNS, Rules, Analytics).
-- The **Google Analytics** property `G-M21FZFQ5YJ`, while it remains enabled (REQ-023).
+- The **Google Analytics** property `G-M21FZFQ5YJ`, until ISS-28 merges and it stops collecting (REQ-023). It keeps its history; there is no need to delete it.
 - The **Search Console** Domain property for `highlandhideaway.ca` (ISS-27).
 - The **GitHub** repository, including the secrets listed in [build-and-deploy.md](build-and-deploy.md).

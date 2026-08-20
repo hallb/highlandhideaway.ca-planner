@@ -17,14 +17,14 @@ relatedTo:
   - ISS-25
 checklist:
   - text: Enable Cloudflare Web Analytics for the zone
-    done: false
+    done: true
   - text: Decide whether to keep Google Analytics
     done: true
-  - text: Swap the google block for the cloudflare block in hugo.toml
+  - text: Remove the google block from hugo.toml (no cloudflare block -- edge injects)
     done: true
-  - text: Create the Web Analytics site and copy the beacon token
-    done: false
-  - text: Fill the token into hugo.toml and merge the branch
+  - text: Record the dashboard dependency in wrangler.toml
+    done: true
+  - text: Merge the branch and deploy
     done: false
   - text: Confirm the beacon is live and close ISS-11
     done: false
@@ -41,8 +41,24 @@ log:
       Verified both directions on a local build. token = "" renders nothing at all, because the theme guards the tag with `with`; a filled value renders the beacon script. So the branch in its current state means no page analytics, not a broken tag -- an acceptable thing to have sitting on a branch, and not something to merge.
 
       Blocked on one value: the beacon token, which needs the Web Analytics site to exist. That token is not a secret; it ships in page source by design.
+  - timestamp: 2026-08-20T21:46:28.764Z
+    author: claude
+    body: |-
+      Correction, and a change of plan. Cloudflare Web Analytics was already enabled, with automatic injection, and had been collecting for some time. The earlier check in this issue that said otherwise was wrong: Cloudflare only injects the beacon for requests that look like a browser, and that check used a plain curl. With a browser User-Agent the beacon is on / and on /posts/welcome/, token 2e7e343f80d04a2d9f9d49013c3c2d92.
+
+      Two things follow. The site has been running two analytics products at once, not one. And the open question about whether edge injection reaches a Worker asset store rather than a classic proxied origin is answered: it does.
+
+      So there is no beacon to install, only GA to remove. Reworked the branch accordingly (site repo 9cd661d, force-pushed over ff71fba, which described the manual install that is no longer the plan). params.analytics.enable goes to false, since with GA gone the theme has nothing left to render.
+
+      Deliberately NOT setting params.analytics.cloudflare.token. The theme supports a manual beacon and the token is public, so adding it looks like an improvement -- but it would render a second beacon alongside the injected one and double-count every view. Said so in the hugo.toml comment, because the next person to read that config will have the same idea.
+
+      Rejected the manual install after considering it. It would put the beacon in version control, which is worth something. But injection was already working, so switching means turning it off and deploying the tag in close succession, with a gap or a spell of double-counting if they do not line up. That is real risk buying a benefit documentation can supply instead: wrangler.toml now carries a dashboard-configuration list naming Web Analytics injection alongside the missing Redirect Rule. The failure last time was not that the dashboard was used, it was that nothing in the repo recorded what the dashboard was meant to hold.
+
+      Also corrected the header of hugo.toml, which asserted the www->apex Redirect Rule exists (ISS-27).
+
+      Verified: no gtag and no beacon in ./public; beacon present at the edge under a browser User-Agent. Branch is ready to merge -- no token needed, nothing outstanding.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-20T21:36:19.342Z
+updatedAt: 2026-08-20T21:46:28.764Z
 ---
 
 ## Requirement

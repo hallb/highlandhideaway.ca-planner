@@ -16,7 +16,7 @@ Short documents capturing a significant decision about the Highland Hideaway sta
 | [0005](0005-make-the-apex-canonical.md) | Make the apex canonical | Accepted, partly implemented |
 | [0006](0006-count-booking-clicks-in-the-worker.md) | Count booking clicks in the Worker | Accepted |
 | [0007](0007-keep-taxonomies-out-of-the-index.md) | Keep taxonomy pages out of the index and the sitemap | Accepted |
-| [0008](0008-page-analytics.md) | Replace Google Analytics with Cloudflare Web Analytics | Accepted, pending deploy |
+| [0008](0008-page-analytics.md) | Remove Google Analytics; keep Cloudflare Web Analytics | Accepted, pending deploy |
 | [0009](0009-replace-the-post-layout.md) | Replace the DoIt post layout rather than override it | Accepted |
 
 0001 and 0002 were written retroactively on 2026-08-20, when this folder was backfilled. Everything from 0003 on was recorded within days of the decision.
