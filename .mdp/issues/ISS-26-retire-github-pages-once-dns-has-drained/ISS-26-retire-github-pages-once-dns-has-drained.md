@@ -2,7 +2,7 @@
 id: ISS-26
 title: Retire GitHub Pages once DNS has drained
 type: task
-status: In Progress
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -16,7 +16,7 @@ relatedTo:
   - ISS-25
 checklist:
   - text: Confirm resolvers no longer return 185.199.108-111.153 for the apex
-    done: false
+    done: true
   - text: Remove the custom domain from the repo's GitHub Pages settings
     done: true
   - text: Delete the CNAME file
@@ -33,8 +33,19 @@ log:
   - timestamp: 2026-08-19T03:51:04.597Z
     author: claude
     body: "Drain check at 2026-08-19 03:50 UTC: Windows now resolves the apex to Cloudflare for both A and AAAA, and the local resolver's A is correct, but it still returns GitHub's AAAA (2606:50c0:800x::153). Ten requests to /go/airbnb from this machine split 8 Cloudflare / 2 GitHub 404 — down from 6/4 an hour ago, so it is draining, just not drained. Still open on that one record."
+  - timestamp: 2026-08-20T21:08:36.434Z
+    author: claude
+    body: |-
+      Drain complete, closing. Checked 2026-08-20 21:07 UTC from the local WSL resolver — the one that was lagging. Both hostnames now return Cloudflare on both record types: A 172.64.80.1 and AAAA 2606:4700:130:436c:6f75:6466:6c61:7265 for the apex and for www alike. Five requests to each hostname all served 200 from 172.64.80.1.
+
+      Deliberately did not repeat the earlier /go/airbnb split test. That path writes a data point on every request, including HEAD, so the two previous drain checks put roughly fourteen synthetic clicks into booking_clicks between 02:42 and 03:50 UTC on 2026-08-19 — the 8 and the 6 that reached Cloudflare; the GitHub 404s recorded nothing. Anyone reading a conversion figure for that window should know it is inflated. Verified against the homepage instead, which serves from the asset store without running the Worker.
+
+      Second acceptance criterion also holds: the only GitHub Pages strings left under the site repo are inside themes/DoIt/exampleSite, which is upstream theme content, not ours.
+  - timestamp: 2026-08-20T21:17:52.366Z
+    author: claude
+    body: "Follow-up on the synthetic clicks noted above: they are filterable. The drain checks called /go/airbnb with no query string, so worker.js defaulted both fields and the rows carry src=unknown and pos=unknown. Real CTAs always pass ?src= and ?pos= through partials/booking-url.html, and the daily monitor canary tags itself src=/canary/. Excluding src IN ('unknown', '/canary/') leaves visitor clicks only. Recorded in docs/02-solution/operations.md so it is not rediscovered from the dashboard."
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-19T03:51:04.597Z
+updatedAt: 2026-08-20T21:17:52.366Z
 ---
 
 ## Requirement

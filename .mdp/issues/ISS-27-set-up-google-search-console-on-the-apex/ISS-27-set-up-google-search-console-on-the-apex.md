@@ -20,7 +20,9 @@ checklist:
     done: true
   - text: Submit https://highlandhideaway.ca/sitemap.xml
     done: true
-  - text: Check Coverage for "Page with redirect" on any www URLs
+  - text: Create the www->apex Redirect Rule in Cloudflare (301 preserving path and query)
+    done: false
+  - text: "Once the redirect is live: confirm www URLs show as Page with redirect in Coverage"
     done: false
 log:
   - timestamp: 2026-08-19T04:13:08.609Z
@@ -47,8 +49,23 @@ log:
       When to come back: first data lands around 2026-08-21 or 22, and query data becomes useful somewhere between 2026-09-02 and 2026-09-16. Two things will look like faults in the first reports and are not — roughly 50 URLs under "Excluded by 'noindex' tag", which is the taxonomy change working, and impressions near zero, because the site is effectively new to Google.
 
       Then the content work in ISS-31 gets its brief: the queries already showing at position 8-15 are the cheap wins, and they should decide which content TODOs are worth finishing first.
+  - timestamp: 2026-08-20T21:09:06.779Z
+    author: claude
+    body: |-
+      The www->apex redirect is not actually in place. Found 2026-08-20 while verifying the DNS drain for ISS-26.
+
+      https://www.highlandhideaway.ca/ returns 200 and serves the whole site, not a 301. Same for https://www.highlandhideaway.ca/posts/welcome/. Both hostnames are attached as custom domains on the Worker, so the Worker answers on both and nothing redirects between them. wrangler.toml lines 26-34 describe a 'www->apex Redirect Rule' firing at the edge and give that as the reason the www route must stay listed; that Redirect Rule was either never created in the dashboard or has since been removed. The wrangler comment is currently describing an intention, not the deployed state.
+
+      This makes the third checklist item unanswerable as written. 'Page with redirect' will never appear for www URLs in Coverage, because there is no redirect — the risk is the opposite one, www URLs indexed as duplicates of the apex.
+
+      Mitigated but not fixed: canonical tags are correct and absolute on both hostnames, so www pages carry <link rel=canonical href=https://highlandhideaway.ca/...>. Google usually consolidates on that, so this is unlikely to be actively costing rankings. It is still worth fixing properly, because canonicals are a hint and a 301 is not.
+
+      The fix is a Redirect Rule in the Cloudflare dashboard (Rules -> Redirect Rules): hostname equals www.highlandhideaway.ca, dynamic redirect to concat('https://highlandhideaway.ca', http.request.uri.path), 301, preserve query string. That is account work needing Zone:Rules edit, which no token in this project has — same constraint as the DNS verification above.
+  - timestamp: 2026-08-20T21:17:52.691Z
+    author: claude
+    body: "Amendment to the note above: hugo.toml carries the same claim. Its first line reads 'The apex is canonical: a Cloudflare Redirect Rule 301s www -> apex.' So two files in the site repo describe a redirect that is not deployed, not one. Both are worth correcting when the rule is created, or sooner if the rule is not going to be."
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-19T04:18:53.841Z
+updatedAt: 2026-08-20T21:17:52.691Z
 ---
 
 ## Requirement
