@@ -56,6 +56,68 @@ The data source is the **Altinity ClickHouse plugin**
 Grafana's own ClickHouse data source is the wrong choice: it speaks the native
 binary protocol, and the SQL API only serves HTTP.
 
+## Conversion rate
+
+The **Conversion** row joins booking clicks against Web Analytics visits, which
+is the number neither tool shows on its own: Cloudflare has the page views,
+Analytics Engine has the clicks, and the ratio is the thing worth watching.
+
+It needs a second data source, because the two numbers live behind different
+APIs. Booking clicks come from the Analytics Engine SQL API; visits come from
+Web Analytics, which is reachable only over the GraphQL Analytics API. The
+Infinity plugin talks to the second one. The same `CF_AE_TOKEN` works for both
+-- Account Analytics: Read covers the RUM datasets, so no new token is needed.
+
+Four things about the numbers, all of which will otherwise look like faults:
+
+**The click counts differ from the panels above.** The conversion panels count
+only clicks whose `blob4` carries a placement (`inline`, `rail`, and whatever
+ISS-33 adds). Everything else was a direct call to `/go/airbnb` -- a probe, the
+daily canary, a DNS drain check -- or predates the placement parameter. Over
+the fourteen days to 2026-08-20 that is the difference between about 180 rows
+and 6. The older panels exclude only the canary, so they are counting mostly
+test traffic. Worth fixing, and not yet fixed.
+
+**The series starts on 2026-08-20**, because that is when the placements
+shipped. There is no earlier conversion history to recover.
+
+**Bots are filtered with `bot: 0`**, matching the "Exclude bots" default in
+Cloudflare's own UI. This is not cosmetic: on 2026-08-20 it took visits from 19
+to 9. Leaving it out halves the reported conversion rate.
+
+**EU visitors are absent entirely**, not undercounted. The Web Analytics site is
+set to "Enable, excluding visitor data in the EU", so nobody in the EU is
+beaconed and neither the numerator nor the denominator includes them.
+
+### The account ID, and why a render step exists
+
+`docker-compose.yml` has a `dashboard-render` service that copies
+`dashboards/` into a volume, substituting `__CF_ACCOUNT_ID__`. Grafana reads
+the rendered copy, so **edit `dashboards/` and restart** -- editing the volume
+directly will be overwritten.
+
+It exists because the RUM datasets are account-scoped and the account has to be
+named inside the GraphQL body. Asking for `accounts` unfiltered returns "not
+authorized for that account", since the token reads one account and the user
+belongs to more. Neither tidy route works: Grafana interpolates `$VARS` in
+provisioning YAML but not in dashboard JSON, and Infinity's global queries --
+which would have carried the body from the provisioning file -- are resolved in
+the browser, not by the backend parser these panels use. So the value has to
+reach the JSON some other way, and `CF_ACCOUNT_ID` is kept out of git in both
+repos.
+
+### siteTag is not the beacon token
+
+Two identifiers for the same site, and mixing them up produces an empty result
+that reads like "no data":
+
+| | |
+| --- | --- |
+| Beacon token, in page source | `2e7e343f80d04a2d9f9d49013c3c2d92` |
+| GraphQL `siteTag`, for queries | `d6c7d92c76644885840437e3fdf3b867` |
+
+The account holds other sites, so the `siteTag` filter is not optional.
+
 ## Things that will trip you up
 
 - **Write raw SQL; ignore the query builder.** Analytics Engine supports

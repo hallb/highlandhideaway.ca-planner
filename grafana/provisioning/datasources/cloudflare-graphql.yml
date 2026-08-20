@@ -1,0 +1,97 @@
+# Cloudflare's GraphQL Analytics API, for Web Analytics (RUM) data.
+#
+# This is a SECOND Cloudflare data source, and it has to be. The Analytics
+# Engine SQL API next door serves only our own Analytics Engine datasets --
+# booking_clicks and nothing else. Page views live in Web Analytics, which is
+# reachable only over GraphQL, so the two numbers that make up a conversion
+# rate come from different APIs that speak different query languages.
+#
+# The Infinity plugin is here to talk GraphQL. docker-compose.yml installs it.
+#
+# The same $CF_AE_TOKEN works for both. Account | Account Analytics | Read is
+# enough for the RUM datasets; no new token is needed.
+#
+# Why the query lives here rather than in the dashboard:
+#
+#   The RUM datasets are account-scoped and the query body must name the
+#   account. Asking for accounts without a filter returns "not authorized for
+#   that account", because the token can read one account and the user belongs
+#   to more. So the account ID has to appear in the GraphQL body -- and this
+#   repo keeps that value in .env, out of git. Grafana interpolates $VARS in
+#   provisioning files from the container environment, and dashboard JSON is
+#   not interpolated. So the query is registered here as a global query and
+#   the dashboard refers to it by id.
+apiVersion: 1
+
+datasources:
+  - name: Cloudflare Web Analytics
+    uid: cf-web-analytics
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    isDefault: false
+    editable: true
+    jsonData:
+      auth_method: bearerToken
+      allowedHosts:
+        - https://api.cloudflare.com
+      timeoutInSeconds: 30
+      global_queries:
+        # Daily visits and page views for highlandhideaway.ca.
+        #
+        # siteTag is NOT the beacon token that appears in page source. They
+        # are different identifiers for the same site, and filtering on the
+        # beacon token returns an empty result that reads like "no data".
+        #   beacon token  2e7e343f80d04a2d9f9d49013c3c2d92
+        #   siteTag       d6c7d92c76644885840437e3fdf3b867
+        # The account holds other sites, so the filter is not optional.
+        #
+        # visits is the session count and is the denominator for conversion
+        # rate. count is page loads, which is the larger number.
+        #
+        # EU visitors are absent entirely, not undercounted: the Web
+        # Analytics site is set to "Enable, excluding visitor data in the EU".
+        - name: RUM daily
+          id: rum_daily
+          query:
+            refId: rum_daily
+            type: graphql
+            source: url
+            format: table
+            parser: backend
+            url: https://api.cloudflare.com/client/v4/graphql
+            url_options:
+              method: POST
+              body_type: graphql
+              body_graphql_query: |
+                query {
+                  viewer {
+                    accounts(filter: { accountTag: "$CF_ACCOUNT_ID" }) {
+                      rumPageloadEventsAdaptiveGroups(
+                        filter: {
+                          date_geq: "${__from:date:YYYY-MM-DD}"
+                          date_leq: "${__to:date:YYYY-MM-DD}"
+                          siteTag: "d6c7d92c76644885840437e3fdf3b867"
+                        }
+                        limit: 1000
+                        orderBy: [date_ASC]
+                      ) {
+                        count
+                        sum { visits }
+                        dimensions { date }
+                      }
+                    }
+                  }
+                }
+            root_selector: data.viewer.accounts.0.rumPageloadEventsAdaptiveGroups
+            columns:
+              - selector: dimensions.date
+                text: day
+                type: timestamp
+              - selector: sum.visits
+                text: visits
+                type: number
+              - selector: count
+                text: pageviews
+                type: number
+    secureJsonData:
+      bearerToken: $CF_AE_TOKEN

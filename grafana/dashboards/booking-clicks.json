@@ -1,36 +1,73 @@
 {
   "uid": "hh-booking-clicks",
   "title": "Booking clicks",
-  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country, blob4 the ?pos= placement (\"inline\" for the {{< book >}} shortcode, \"rail\" for the sticky card on every post, \"unknown\" for rows written before it existed). No panel here reads blob4 yet.",
-  "tags": ["highland-hideaway", "cloudflare"],
+  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country, blob4 the ?pos= placement (\"inline\" for the {{< book >}} shortcode, \"rail\" for the sticky card on every post, \"unknown\" for rows written before it existed). No panel here reads blob4 yet.\n\nThe Conversion row joins these clicks against Web Analytics visits from Cloudflare's GraphQL API. Those panels count only clicks carrying a blob4 placement, which excludes probes and the canary; the panels above them do not, so their totals differ and the difference is test traffic.",
+  "tags": [
+    "highland-hideaway",
+    "cloudflare"
+  ],
   "timezone": "browser",
   "editable": true,
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "",
-  "time": { "from": "now-7d", "to": "now" },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "panels": [
     {
       "id": 1,
       "type": "stat",
       "title": "Clicks in range",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
-      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "colorMode": "value",
         "graphMode": "none",
         "textMode": "auto"
       },
       "fieldConfig": {
-        "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [ { "color": "text", "value": null } ] } },
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
         "overrides": []
       },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
           "database": "",
           "table": "booking_clicks",
           "dateTimeType": "DATETIME",
@@ -50,21 +87,54 @@
       "type": "timeseries",
       "title": "Clicks over time by page",
       "description": "One series per ?src= value. Counted with SUM(_sample_interval), which is how Analytics Engine undoes sampling.",
-      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 0 },
-      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 0
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "decimals": 0,
-          "custom": { "drawStyle": "bars", "fillOpacity": 60, "lineWidth": 1, "stacking": { "mode": "normal", "group": "A" }, "showPoints": "never" }
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
         },
         "overrides": []
       },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["sum"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
           "database": "",
           "table": "booking_clicks",
           "dateTimeType": "DATETIME",
@@ -84,14 +154,40 @@
       "type": "table",
       "title": "Clicks by page",
       "description": "ISS-29 acceptance: two clicks from different pages must be distinguishable by blob1.",
-      "gridPos": { "h": 9, "w": 10, "x": 0, "y": 6 },
-      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
-      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "clicks", "desc": true } ] },
+      "gridPos": {
+        "h": 9,
+        "w": 10,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "clicks",
+            "desc": true
+          }
+        ]
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
           "database": "",
           "table": "booking_clicks",
           "dateTimeType": "DATETIME",
@@ -111,14 +207,34 @@
       "type": "table",
       "title": "Recent clicks",
       "description": "Raw rows. This is the panel that answers ISS-29: click a Book now button and the row should appear here within about a minute.",
-      "gridPos": { "h": 9, "w": 14, "x": 10, "y": 6 },
-      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
-      "fieldConfig": { "defaults": { "custom": { "align": "auto" } }, "overrides": [] },
-      "options": { "showHeader": true },
+      "gridPos": {
+        "h": 9,
+        "w": 14,
+        "x": 10,
+        "y": 6
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "cf-analytics-engine" },
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
           "database": "",
           "table": "booking_clicks",
           "dateTimeType": "DATETIME",
@@ -132,6 +248,346 @@
           "query": "SELECT\n    timestamp,\n    blob1 AS src,\n    blob2 AS referer,\n    blob3 AS country\nFROM booking_clicks\nWHERE $timeFilter\nORDER BY timestamp DESC\nLIMIT 100"
         }
       ]
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Conversion",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Visits, CTA clicks, and conversion rate",
+      "description": "Booking clicks over visits, by day. The two numbers come from different APIs -- clicks from the booking_clicks Analytics Engine dataset, visits from Web Analytics over GraphQL -- and are joined here on the day.\n\nClicks are counted only when blob4 carries a placement, so probes, the daily canary and the DNS drain checks are excluded. That is why this panel reports far fewer clicks than 'Clicks in range' above, which excludes only the canary. It also means the series starts on 2026-08-20, when the placements shipped.\n\nVisits exclude EU visitors entirely: the Web Analytics site is set to 'Enable, excluding visitor data in the EU'. The query also filters bot: 0, matching the 'Exclude bots' default in Cloudflare's own UI. That matters more than it sounds: on 2026-08-20 it took visits from 19 to 9, so leaving it out would have halved the reported conversion rate.",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cf-web-analytics"
+          },
+          "type": "graphql",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://api.cloudflare.com/client/v4/graphql",
+          "url_options": {
+            "method": "POST",
+            "body_type": "graphql",
+            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        count\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
+          },
+          "root_selector": "data.viewer.accounts.0.rumPageloadEventsAdaptiveGroups",
+          "columns": [
+            {
+              "selector": "dimensions.date",
+              "text": "day",
+              "type": "timestamp"
+            },
+            {
+              "selector": "sum.visits",
+              "text": "visits",
+              "type": "number"
+            },
+            {
+              "selector": "count",
+              "text": "pageviews",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "day",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Conversion rate",
+            "mode": "binary",
+            "binary": {
+              "left": "clicks",
+              "operator": "/",
+              "right": "visits"
+            },
+            "replaceFields": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 55,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "axisPlacement": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Conversion rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.drawStyle",
+                "value": "line"
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 2
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.showPoints",
+                "value": "always"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pageviews"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Conversion rate in range",
+      "description": "Total CTA clicks divided by total visits over the selected range. Same filters as the panel to the left.\n\nDo not believe this number yet. The placements shipped on 2026-08-20, so the only clicks it can see are from the same day, and most of them are ours from testing the rail. Six clicks against nine visits reads as 67 percent, which is not a conversion rate, it is us clicking our own button. It becomes meaningful once real traffic arrives and our own clicks stop being most of the numerator.\n\nAt this volume a single click moves it by several points regardless.",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cf-web-analytics"
+          },
+          "type": "graphql",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://api.cloudflare.com/client/v4/graphql",
+          "url_options": {
+            "method": "POST",
+            "body_type": "graphql",
+            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        count\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
+          },
+          "root_selector": "data.viewer.accounts.0.rumPageloadEventsAdaptiveGroups",
+          "columns": [
+            {
+              "selector": "dimensions.date",
+              "text": "day",
+              "type": "timestamp"
+            },
+            {
+              "selector": "sum.visits",
+              "text": "visits",
+              "type": "number"
+            },
+            {
+              "selector": "count",
+              "text": "pageviews",
+              "type": "number"
+            }
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "day",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Conversion rate",
+            "mode": "binary",
+            "binary": {
+              "left": "clicks",
+              "operator": "/",
+              "right": "visits"
+            },
+            "replaceFields": false
+          }
+        },
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "sum"
+            ],
+            "mode": "reduceFields"
+          }
+        },
+        {
+          "id": "calculateField",
+          "options": {
+            "alias": "Rate",
+            "mode": "binary",
+            "binary": {
+              "left": "clicks",
+              "operator": "/",
+              "right": "visits"
+            },
+            "replaceFields": true
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
   ]
 }

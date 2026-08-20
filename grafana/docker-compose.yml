@@ -18,6 +18,42 @@
 name: hh-grafana
 
 services:
+  # Renders dashboards/ into a volume, substituting __CF_ACCOUNT_ID__.
+  #
+  # The RUM panels have to name the Cloudflare account inside the GraphQL
+  # body -- asking for accounts unfiltered returns "not authorized for that
+  # account", because the token reads one account and the user belongs to
+  # more. Grafana interpolates $VARS in provisioning YAML but NOT in
+  # dashboard JSON, and Infinity's global queries (which would have carried
+  # the body from the provisioning file) are resolved in the browser, not by
+  # the backend parser that these panels use. So neither of the tidy routes
+  # works, and the value has to reach the dashboard JSON some other way.
+  #
+  # It renders here rather than being committed because CF_ACCOUNT_ID is kept
+  # out of git in both repos -- .env here, a GitHub secret in the site repo.
+  # It is an identifier rather than a credential, but that is the convention
+  # and this is cheap enough to keep it.
+  dashboard-render:
+    image: busybox:1.37
+    container_name: hh-grafana-render
+    env_file: .env
+    volumes:
+      - ./dashboards:/tmpl:ro
+      - dashboards-rendered:/out
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        if [ -z "$${CF_ACCOUNT_ID:-}" ]; then
+          echo "CF_ACCOUNT_ID is not set; copy .env.example to .env" >&2
+          exit 1
+        fi
+        for f in /tmpl/*.json; do
+          sed "s/__CF_ACCOUNT_ID__/$$CF_ACCOUNT_ID/g" "$$f" > "/out/$$(basename "$$f")"
+        done
+        echo "rendered: $$(ls /out)"
+
   grafana:
     image: grafana/grafana:13.2.0
     container_name: hh-grafana
@@ -25,8 +61,14 @@ services:
     ports:
       - "${GRAFANA_BIND:-0.0.0.0}:${GRAFANA_PORT:-3000}:3000"
     env_file: .env
+    depends_on:
+      dashboard-render:
+        condition: service_completed_successfully
     environment:
-      GF_INSTALL_PLUGINS: vertamedia-clickhouse-datasource
+      # Two plugins, because the two numbers come from two APIs: the
+      # Altinity plugin speaks to the Analytics Engine SQL API (booking
+      # clicks), Infinity speaks GraphQL to Web Analytics (page views).
+      GF_INSTALL_PLUGINS: vertamedia-clickhouse-datasource,yesoreyeram-infinity-datasource
       # Reachable from the Windows host, so the login stays on. Set
       # GRAFANA_ADMIN_PASSWORD in .env to something other than admin.
       GF_SECURITY_ADMIN_USER: admin
@@ -37,8 +79,11 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
-      # Not under /var/lib/grafana, which the named volume owns.
-      - ./dashboards:/etc/grafana/dashboards:ro
+      # Not under /var/lib/grafana, which the named volume owns. Grafana reads
+      # the RENDERED dashboards, not ./dashboards -- edit the files in
+      # ./dashboards and restart, or the change will not appear.
+      - dashboards-rendered:/etc/grafana/dashboards:ro
 
 volumes:
   grafana-data:
+  dashboards-rendered:
