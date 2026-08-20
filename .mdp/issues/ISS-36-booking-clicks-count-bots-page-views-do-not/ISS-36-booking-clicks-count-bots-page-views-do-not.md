@@ -2,7 +2,7 @@
 id: ISS-36
 title: Booking clicks count bots; page views do not
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,9 +15,25 @@ parent: null
 relatedTo:
   - ISS-29
 checklist: []
-log: []
+log:
+  - timestamp: 2026-08-20T23:49:06.270Z
+    author: claude
+    body: |-
+      Done, 2026-08-20. Site repo commit c9613d4, deployed and verified in production.
+
+      The Worker now appends three fields: blob5 a verdict of "bot" or "human", blob6 the first 128 characters of the user agent, blob7 the network operator from request.cf.asOrganization. Appended, never inserted, since every panel reads blobs positionally.
+
+      The verdict is the convenience; blob6 and blob7 are the evidence, which is what lets a better rule be applied later to data already collected. That was the point of recording rather than dropping. Cloudflare bot score would be better and needs Bot Management, a paid add-on; asn and asOrganization are on every plan.
+
+      Verified live rather than assumed. Two tagged clicks through the real endpoint, one with a Chrome user agent and one with curl: verdict=human and verdict=bot respectively, both carrying the user agent and "Rogers Cable Inc. WLFDLE". Those rows carry src=/verify-iss36/ and are filtered out of every panel.
+
+      script/test covers the classifier and CI runs it before the build. It paid for itself immediately: the first regex missed lychee, which is the weekly link crawler in monitor.yml and follows every /go/airbnb link on the site, so it was probably a real contributor to the counts this issue is about.
+
+      A scraper sending a browser string still reads as human. Known limit, stated in the code, and the reason the evidence goes in the row.
+
+      Consequence worth stating plainly: the dashboard now counts only classified clicks, so it starts from 2026-08-20 23:37 UTC and is currently empty. Everything before that stays in the dataset and is deliberately not counted -- there is no way to tell which of those rows were people.
 createdAt: 2026-08-20T23:18:04.927Z
-updatedAt: 2026-08-20T23:18:04.927Z
+updatedAt: 2026-08-20T23:49:06.270Z
 ---
 
 ## Requirement
