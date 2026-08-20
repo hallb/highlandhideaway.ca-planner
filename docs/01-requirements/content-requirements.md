@@ -30,6 +30,6 @@ These align with existing or planned posts in the site repo; the list is the req
 
 - **REQ-014:** Lock codes, Wi-Fi passwords, and other **access secrets** must not appear in public Markdown. Use host-to-guest channels (Airbnb, email) for secrets unless a gated area is introduced (not currently in scope).
 
-## Optional expansions
+## Pages beyond the guides
 
-- Dedicated **Contact** and **About** pages if linked from navigation (currently referenced in theme/menu; implementation should match links—see solution backlog).
+- **About** (`/about/`) and **Contact** (`/posts/contact/`) both exist and are linked. Any menu entry or in-content link must point at a page that resolves; `htmltest` fails the build otherwise.
