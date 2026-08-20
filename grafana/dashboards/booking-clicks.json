@@ -1,7 +1,7 @@
 {
   "uid": "hh-booking-clicks",
   "title": "Booking clicks",
-  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country.",
+  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country, blob4 the ?pos= placement (\"inline\" for the {{< book >}} shortcode, \"rail\" for the sticky card on every post, \"unknown\" for rows written before it existed). No panel here reads blob4 yet.",
   "tags": ["highland-hideaway", "cloudflare"],
   "timezone": "browser",
   "editable": true,
