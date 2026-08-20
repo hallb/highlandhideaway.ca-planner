@@ -81,13 +81,41 @@ test traffic. Worth fixing, and not yet fixed.
 **The series starts on 2026-08-20**, because that is when the placements
 shipped. There is no earlier conversion history to recover.
 
-**Bots are filtered with `bot: 0`**, matching the "Exclude bots" default in
-Cloudflare's own UI. This is not cosmetic: on 2026-08-20 it took visits from 19
-to 9. Leaving it out halves the reported conversion rate.
+**Bots are filtered out of visits with `bot: 0`**, matching the "Exclude bots"
+default in Cloudflare's own UI. This is not cosmetic: on 2026-08-20 it took
+visits from 19 to 9. Leaving it out halves the reported conversion rate.
+
+**Bots are not filtered out of clicks, and cannot be yet.** `src/worker.js`
+records every request to `/go/airbnb` whatever sent it, so the numerator
+contains machines and the denominator does not. Of the clicks in the fourteen
+days to 2026-08-20, 27 came from ZA and 9 from NL in bursts across many pages,
+seconds apart, with no referer — a crawler following the booking link on every
+page. That is about 16% of all rows. The rate is overstated by however much of
+the numerator is machines. Tracked in ISS-36.
 
 **EU visitors are absent entirely**, not undercounted. The Web Analytics site is
 set to "Enable, excluding visitor data in the EU", so nobody in the EU is
 beaconed and neither the numerator nor the denominator includes them.
+
+### The maths runs server-side, deliberately
+
+The rate is a Grafana **expression** (`$A / $B`), not a transformation.
+
+Transformations run in the browser, which means they cannot be tested from a
+terminal — you change the JSON, reload the page, and squint. Expressions run in
+the backend, so the whole chain can be checked with a request:
+
+```bash
+curl -s -u admin:$GRAFANA_ADMIN_PASSWORD -H 'Content-Type: application/json' \
+  -X POST http://localhost:3000/api/ds/query --data @query.json
+```
+
+The first version of these panels used `joinByField` plus `calculateField` and
+looked fine in the JSON while rendering nothing. Prefer expressions here.
+
+Note that a query feeding an expression returns a field named after its refId,
+not its column — the visits series arrives as `B`, not `visits` — so the panels
+carry `displayName` overrides to relabel them.
 
 ### The account ID, and why a render step exists
 

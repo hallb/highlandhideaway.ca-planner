@@ -9,7 +9,7 @@
   "timezone": "browser",
   "editable": true,
   "schemaVersion": 39,
-  "version": 2,
+  "version": 4,
   "refresh": "",
   "time": {
     "from": "now-7d",
@@ -266,7 +266,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "Visits, CTA clicks, and conversion rate",
-      "description": "Booking clicks over visits, by day. The two numbers come from different APIs -- clicks from the booking_clicks Analytics Engine dataset, visits from Web Analytics over GraphQL -- and are joined here on the day.\n\nClicks are counted only when blob4 carries a placement, so probes, the daily canary and the DNS drain checks are excluded. That is why this panel reports far fewer clicks than 'Clicks in range' above, which excludes only the canary. It also means the series starts on 2026-08-20, when the placements shipped.\n\nVisits exclude EU visitors entirely: the Web Analytics site is set to 'Enable, excluding visitor data in the EU'. The query also filters bot: 0, matching the 'Exclude bots' default in Cloudflare's own UI. That matters more than it sounds: on 2026-08-20 it took visits from 19 to 9, so leaving it out would have halved the reported conversion rate.",
+      "description": "Booking clicks over visits, by day. The two numbers come from different APIs -- clicks from the booking_clicks Analytics Engine dataset, visits from Web Analytics over GraphQL -- and are joined here on the day.\n\nClicks are counted only when blob4 carries a placement, so probes, the daily canary and the DNS drain checks are excluded. That is why this panel reports far fewer clicks than 'Clicks in range' above, which excludes only the canary. It also means the series starts on 2026-08-20, when the placements shipped.\n\nVisits exclude EU visitors entirely: the Web Analytics site is set to 'Enable, excluding visitor data in the EU'. The query also filters bot: 0, matching the 'Exclude bots' default in Cloudflare's own UI. That matters more than it sounds: on 2026-08-20 it took visits from 19 to 9, so leaving it out would have halved the reported conversion rate.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. So this rate is overstated by however much of the numerator is machines. Tracked in ISS-36.",
       "gridPos": {
         "h": 9,
         "w": 16,
@@ -310,7 +310,7 @@
           "url_options": {
             "method": "POST",
             "body_type": "graphql",
-            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        count\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
+            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
           },
           "root_selector": "data.viewer.accounts.0.rumPageloadEventsAdaptiveGroups",
           "columns": [
@@ -323,35 +323,17 @@
               "selector": "sum.visits",
               "text": "visits",
               "type": "number"
-            },
-            {
-              "selector": "count",
-              "text": "pageviews",
-              "type": "number"
             }
           ]
-        }
-      ],
-      "transformations": [
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "day",
-            "mode": "outer"
-          }
         },
         {
-          "id": "calculateField",
-          "options": {
-            "alias": "Conversion rate",
-            "mode": "binary",
-            "binary": {
-              "left": "clicks",
-              "operator": "/",
-              "right": "visits"
-            },
-            "replaceFields": false
-          }
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "$A / $B"
         }
       ],
       "fieldConfig": {
@@ -370,9 +352,37 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Conversion rate"
+              "options": "clicks"
             },
             "properties": [
+              {
+                "id": "displayName",
+                "value": "CTA clicks"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "B"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Visits"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Conversion rate"
+              },
               {
                 "id": "unit",
                 "value": "percentunit"
@@ -402,26 +412,14 @@
                 "value": "right"
               },
               {
+                "id": "max",
+                "value": 1
+              },
+              {
                 "id": "color",
                 "value": {
                   "mode": "fixed",
                   "fixedColor": "orange"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "pageviews"
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
                 }
               }
             ]
@@ -447,7 +445,7 @@
       "id": 12,
       "type": "stat",
       "title": "Conversion rate in range",
-      "description": "Total CTA clicks divided by total visits over the selected range. Same filters as the panel to the left.\n\nDo not believe this number yet. The placements shipped on 2026-08-20, so the only clicks it can see are from the same day, and most of them are ours from testing the rail. Six clicks against nine visits reads as 67 percent, which is not a conversion rate, it is us clicking our own button. It becomes meaningful once real traffic arrives and our own clicks stop being most of the numerator.\n\nAt this volume a single click moves it by several points regardless.",
+      "description": "Total CTA clicks divided by total visits over the selected range. Same filters as the panel to the left.\n\nDo not believe this number yet. The placements shipped on 2026-08-20, so the only clicks it can see are from the same day, and most of them are ours from testing the rail. Six clicks against nine visits reads as 67 percent, which is not a conversion rate, it is us clicking our own button. It becomes meaningful once real traffic arrives and our own clicks stop being most of the numerator.\n\nAt this volume a single click moves it by several points regardless.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. So this rate is overstated by however much of the numerator is machines. Tracked in ISS-36.",
       "gridPos": {
         "h": 9,
         "w": 8,
@@ -475,7 +473,8 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day"
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day",
+          "hide": true
         },
         {
           "refId": "B",
@@ -491,7 +490,7 @@
           "url_options": {
             "method": "POST",
             "body_type": "graphql",
-            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        count\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
+            "body_graphql_query": "query {\n  viewer {\n    accounts(filter: { accountTag: \"__CF_ACCOUNT_ID__\" }) {\n      rumPageloadEventsAdaptiveGroups(\n        filter: {\n          date_geq: \"${__from:date:YYYY-MM-DD}\"\n          date_leq: \"${__to:date:YYYY-MM-DD}\"\n          siteTag: \"d6c7d92c76644885840437e3fdf3b867\"\n          bot: 0\n        }\n        limit: 1000\n        orderBy: [date_ASC]\n      ) {\n        sum { visits }\n        dimensions { date }\n      }\n    }\n  }\n}"
           },
           "root_selector": "data.viewer.accounts.0.rumPageloadEventsAdaptiveGroups",
           "columns": [
@@ -504,57 +503,46 @@
               "selector": "sum.visits",
               "text": "visits",
               "type": "number"
-            },
-            {
-              "selector": "count",
-              "text": "pageviews",
-              "type": "number"
             }
-          ]
-        }
-      ],
-      "transformations": [
-        {
-          "id": "joinByField",
-          "options": {
-            "byField": "day",
-            "mode": "outer"
-          }
+          ],
+          "hide": true
         },
         {
-          "id": "calculateField",
-          "options": {
-            "alias": "Conversion rate",
-            "mode": "binary",
-            "binary": {
-              "left": "clicks",
-              "operator": "/",
-              "right": "visits"
-            },
-            "replaceFields": false
-          }
+          "refId": "C",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "A",
+          "reducer": "sum",
+          "settings": {
+            "mode": "dropNN"
+          },
+          "hide": true
         },
         {
-          "id": "reduce",
-          "options": {
-            "reducers": [
-              "sum"
-            ],
-            "mode": "reduceFields"
-          }
+          "refId": "D",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "reduce",
+          "expression": "B",
+          "reducer": "sum",
+          "settings": {
+            "mode": "dropNN"
+          },
+          "hide": true
         },
         {
-          "id": "calculateField",
-          "options": {
-            "alias": "Rate",
-            "mode": "binary",
-            "binary": {
-              "left": "clicks",
-              "operator": "/",
-              "right": "visits"
-            },
-            "replaceFields": true
-          }
+          "refId": "E",
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "type": "math",
+          "expression": "$C / $D"
         }
       ],
       "options": {
@@ -586,7 +574,20 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "E"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Conversion rate"
+              }
+            ]
+          }
+        ]
       }
     }
   ]
