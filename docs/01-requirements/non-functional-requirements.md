@@ -17,7 +17,7 @@
 
 ## Privacy and cookies
 
-- **REQ-035:** Analytics must not create a consent obligation that the site does not meet. Google Analytics is currently enabled with `anonymizeIP = true`, and no consent banner or privacy notice is published. That gap is the open question in ISS-28 and ISS-11: adopting cookieless analytics would remove what raises it. Booking-click counting is server-side and cookieless, so it does not bear on this requirement.
+- **REQ-035:** Analytics must not create a consent obligation that the site does not meet. Met by using only cookieless analytics: Cloudflare Web Analytics for traffic, and the server-side counter in the Worker for booking clicks. Google Analytics was dropped for this reason rather than wrapped in a consent banner — see [ADR-0008](../02-solution/adr/0008-page-analytics.md). Not yet deployed; GA is still live until ISS-28 completes.
 
 ## Availability and hosting
 

@@ -45,7 +45,7 @@ Timing, so the first reports are read correctly: data starts landing 2 to 3 days
 
 ## Analytics
 
-Three separate things, with different jobs. Only the second is a decision that is still open.
+Three separate things, with different jobs.
 
 ### 1. Booking clicks — the conversion signal
 
@@ -68,17 +68,28 @@ Two properties are worth stating because they are the reason for the design: the
 
 Analytics Engine has no UI. The only way to read the dataset is its SQL API, which `grafana/` in this repo provides a local front end for. Retention is three months on the free plan, which bounds the history.
 
-### 2. Page analytics — decision open
+### 2. Page analytics
 
-**Google Analytics** is enabled: `params.analytics.google.id = "G-M21FZFQ5YJ"`, `anonymizeIP = true`. No consent banner and no privacy notice are published.
+**Cloudflare Web Analytics**, on automatic injection. Google Analytics is being removed. See [ADR-0008](adr/0008-page-analytics.md) and ISS-28.
 
-**Cloudflare Web Analytics** is not enabled. Checked 2026-08-20: the live homepage carries the `gtag` script and no Cloudflare beacon.
+Cloudflare injects the beacon at the edge from the automatic setup on the Web Analytics site. It is not in `./public`, and `hugo.toml` sets no beacon of its own — setting `params.analytics.cloudflare.token` would put a second beacon on the page and double-count every view.
 
-The open question is whether to keep GA. It is free, cookieless, and needs no script tag on a proxied zone; it reports page views, referrers, paths and Core Web Vitals, and has no custom events. Custom events are not needed here, because conversions go through the Worker rather than through any analytics product.
+Injection only fires for requests that look like a browser. A plain `curl` shows no beacon, and that absence proves nothing:
 
-Dropping GA would close the consent question in ISS-11 by removing what raises it, rather than answering it with a banner and a privacy page. GA carries nothing load-bearing: its unique contribution is session and engagement metrics plus historical continuity. Tracked in ISS-28, with the decision recorded as [ADR-0008](adr/0008-page-analytics.md), currently Proposed.
+```bash
+curl -s https://highlandhideaway.ca/ -H "User-Agent: Mozilla/5.0 ..." \
+  | grep -o "data-cf-beacon='[^']*'"
+```
 
-Note that the two cannot be compared until Cloudflare Web Analytics is actually turned on and has accumulated data.
+An earlier version of this document said Cloudflare Web Analytics was not enabled. That was wrong, and it came from checking with a plain `curl`. It had been collecting all along, which means the site was briefly running two analytics products at once.
+
+Cloudflare Web Analytics is free and cookieless. It reports page views, referrers, paths and Core Web Vitals, and has no custom events — which costs nothing here, because conversions go through the Worker rather than through any analytics product.
+
+Removing GA closes the consent question in ISS-11 by taking away what raised it, rather than answering it with a banner and a privacy page. Nothing load-bearing goes with it: its unique contribution was session and engagement metrics plus historical continuity, and nothing depends on either. The GA property stops collecting and keeps its history.
+
+**GA is still live.** The removal sits on site repo branch `analytics/cloudflare-web-analytics` (commit `9cd661d`), not merged. `params.analytics.enable` goes to `false` there, since with GA gone the theme has nothing left to render.
+
+The dashboard settings this depends on are listed in `wrangler.toml`, alongside the missing Redirect Rule. Nothing in CI can tell you a dashboard setting was removed, so that list is the only record.
 
 ### 3. Edge analytics — always available
 

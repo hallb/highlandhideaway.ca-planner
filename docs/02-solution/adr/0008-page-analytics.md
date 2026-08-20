@@ -1,36 +1,48 @@
-# ADR 0008: Page analytics — keep Google Analytics, or move to Cloudflare
+# ADR 0008: Remove Google Analytics; keep Cloudflare Web Analytics on automatic injection
 
 ## Status
 
-**Proposed.** Open as of 2026-08-20. Tracked in ISS-28; the consent question it settles is ISS-11.
+**Accepted, 2026-08-20. Implementation pending** — the GA removal is on site repo branch `analytics/cloudflare-web-analytics` (commit `9cd661d`) and is not merged, so GA is still live in production. Cloudflare Web Analytics is already running. Tracked in ISS-28; the consent question it settles is ISS-11.
 
 ## Context
 
-Google Analytics 4 is enabled with `anonymizeIP = true`. No consent banner and no privacy notice are published, which is the gap REQ-035 names.
+Google Analytics 4 was enabled with `anonymizeIP = true`. No consent banner and no privacy notice were published, which is the gap REQ-035 names. GA was the only reason that gap existed — nothing else on the site sets a cookie or stores an identifier that follows a visitor between sessions.
 
-Cloudflare Web Analytics is free, cookieless, and needs no script tag on a proxied zone. It reports page views, referrers, paths and Core Web Vitals. It has no custom events.
+**Cloudflare Web Analytics was already enabled, with automatic injection**, and had been collecting for some time. An earlier check concluded it was not, and that conclusion was wrong: Cloudflare only injects the beacon for requests that look like a browser, and the check used a plain `curl`. With a browser User-Agent the beacon is present on `/` and on `/posts/welcome/`.
 
-The absence of custom events does not matter here. Conversions go through the Worker ([ADR-0006](0006-count-booking-clicks-in-the-worker.md)), not through any analytics product, which was chosen partly to keep this decision cheap to reverse.
+That also settles a question this ADR previously recorded as open. Edge injection does reach responses served from a Worker asset store, not only a classic proxied origin.
 
-What GA uniquely provides is session and engagement metrics, and continuity with whatever history the property already holds.
+So the site had two analytics running at once, and the decision was never "which product" — it was only whether to keep paying the consent cost of GA.
 
-Against that, GA is the only reason the consent question exists. Dropping it would close ISS-11 by removing what raises it, rather than answering it with a banner and a privacy page.
+Cloudflare Web Analytics is free and cookieless. It reports page views, referrers, paths and Core Web Vitals. It has no custom events, which costs nothing here: booking conversions are counted server-side by the Worker ([ADR-0006](0006-count-booking-clicks-in-the-worker.md)), not by any analytics product. Keeping conversion measurement out of the analytics vendor is what made this decision cheap.
+
+What GA uniquely provided was session and engagement metrics, and continuity with the history already in the property.
 
 ## Decision
 
-Not yet made. The shape under consideration:
+Remove Google Analytics. Keep Cloudflare Web Analytics on automatic injection.
 
-1. Enable Cloudflare Web Analytics for the zone.
-2. Run both for two to four weeks, alongside the Search Console ramp.
-3. If nothing in GA is being used, set `params.analytics.enable = false` and close ISS-11.
+`params.analytics.enable` goes to `false`, because with GA gone there is nothing left for the theme to render.
+
+**Do not set `params.analytics.cloudflare.token`.** DoIt supports a manual beacon, and the token is public and visible in the dashboard, so adding it looks like an obvious improvement. It is not: the theme would render a second beacon alongside the injected one and double-count every view. The two mechanisms are mutually exclusive.
+
+Manual installation was considered and rejected. It would put the beacon in version control, which is worth something — dashboard-only configuration is invisible to code review, and this project has already lost the www→apex Redirect Rule exactly that way ([ADR-0005](0005-make-the-apex-canonical.md)). But automatic injection was already working and already collecting, so switching would mean turning injection off and deploying the manual tag in close succession, with a gap or a period of double-counting if the two did not line up. That is real risk for a benefit that documentation can supply instead.
+
+The mitigation is a dashboard-configuration list in `wrangler.toml`, naming Web Analytics injection alongside the missing Redirect Rule. The point of failure last time was not that the dashboard was used; it was that nothing in the repo recorded what the dashboard was meant to hold.
 
 ## Consequences
 
-To be recorded when the decision is made.
+The site sets no cookie and needs no consent banner or privacy notice, so ISS-11 closes rather than acquiring one.
 
-Two facts that bear on it, both checked 2026-08-20:
+The GA property stops collecting but keeps its history; it is not deleted. Session and engagement metrics are gone, and nothing currently depends on them.
 
-- Cloudflare Web Analytics is **not** enabled. The live homepage carries `gtag` and no Cloudflare beacon, so there is no CF page data to compare against yet. Nothing can be decided on evidence until that is turned on and has accumulated some.
-- Search Console was verified 2026-08-19 and query data is not useful before roughly 2026-09-02. The traffic picture is thin in every tool right now, which argues for enabling Cloudflare and waiting rather than deciding on the current numbers.
+The beacon does not appear in `./public`, and it does not appear to a plain `curl`. Neither absence means anything is broken. Checking it requires a browser User-Agent:
 
-Cloudflare's zone-level edge analytics is unaffected either way. It needs no beacon, but counts requests rather than sessions, so it does not substitute for either option.
+```bash
+curl -s https://highlandhideaway.ca/ -H "User-Agent: Mozilla/5.0 ..." \
+  | grep -o "data-cf-beacon='[^']*'"
+```
+
+Bots and scripted requests are not beaconed, so Web Analytics counts closer to real visitors than a tag in the HTML would.
+
+Web Analytics now has a dashboard dependency that no deploy will restore. If the site is ever moved off Cloudflare, or the Web Analytics site is deleted, page analytics stops silently and nothing in CI notices.
