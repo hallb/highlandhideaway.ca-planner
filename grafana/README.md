@@ -97,6 +97,36 @@ the numerator is machines. Tracked in ISS-36.
 set to "Enable, excluding visitor data in the EU", so nobody in the EU is
 beaconed and neither the numerator nor the denominator includes them.
 
+### The ClickHouse plugin cannot draw a table
+
+The Altinity plugin pivots any result containing a DateTime column into one
+series per row, and returns **no frames at all** when the result has no numeric
+column. Both are right for a graph and wrong for a table, and neither reports an
+error -- the panel is simply empty, with `status: 200` and `frames: []`.
+
+That is why "Recent clicks" showed nothing from the day it was written. It reads
+the Analytics Engine SQL API through **Infinity** instead, which gives full
+control over the shape:
+
+```
+url          .../accounts/__CF_ACCOUNT_ID__/analytics_engine/sql
+method       POST, body_type raw, content type text/plain
+body         the SQL, ending FORMAT JSON
+root_selector  data
+```
+
+Two constraints on the SQL, both learned by trying:
+
+- Analytics Engine has no `toString`. Its dialect is a subset.
+- Comparing a DateTime to a string literal is rejected. Wrap the Grafana macro:
+  `timestamp >= toDateTime('${__from:date:YYYY-MM-DD HH:mm:ss}')`, and that
+  format exactly -- ISO with `T` and `Z` is refused.
+- `ORDER BY` only works on a column that appears in the `SELECT`.
+
+Infinity emits columns alphabetically whatever order you declare them in. The
+column names in that panel are chosen so the alphabetical order reads correctly,
+rather than being reordered afterwards with a transformation.
+
 ### The maths runs server-side, deliberately
 
 The rate is a Grafana **expression** (`$A / $B`), not a transformation.

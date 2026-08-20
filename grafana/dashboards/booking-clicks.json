@@ -1,7 +1,7 @@
 {
   "uid": "hh-booking-clicks",
   "title": "Booking clicks",
-  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset. blob1 is the ?src= page path, blob2 the referrer, blob3 the country, blob4 the ?pos= placement (\"inline\" for the {{< book >}} shortcode, \"rail\" for the sticky card on every post, \"unknown\" for rows written before it existed). No panel here reads blob4 yet.\n\nThe Conversion row joins these clicks against Web Analytics visits from Cloudflare's GraphQL API. Those panels count only clicks carrying a blob4 placement, which excludes probes and the canary; the panels above them do not, so their totals differ and the difference is test traffic.",
+  "description": "Clicks on the Book now CTAs, counted server-side by the /go/airbnb Worker and written to the booking_clicks Analytics Engine dataset.\n\nblob1 ?src= page, blob2 referer, blob3 country, blob4 ?pos= placement, blob5 bot verdict, blob6 user agent, blob7 network operator. Fields are appended and never inserted, so rows written before a field existed simply carry fewer blobs -- blob5 = '' means unclassified, not human.\n\nEverything except 'Recent clicks' counts only clicks classified as coming from a browser, which means the numbers start on 2026-08-20. Earlier rows carry no verdict and are excluded rather than assumed human. The Conversion row additionally requires a real placement, and divides by visits from Web Analytics over GraphQL.",
   "tags": [
     "highland-hideaway",
     "cloudflare"
@@ -9,13 +9,29 @@
   "timezone": "browser",
   "editable": true,
   "schemaVersion": 39,
-  "version": 4,
+  "version": 8,
   "refresh": "",
   "time": {
     "from": "now-7d",
     "to": "now"
   },
   "panels": [
+    {
+      "id": 20,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Clicks have only been classified since 2026-08-20 23:37 UTC** (ISS-36), and every panel below except *Recent clicks* counts classified browser clicks only. Empty panels mean no real clicks have landed since then, not a broken query \u2014 check *Recent clicks*, which is unfiltered.\n\nEarlier rows are still in the dataset and are deliberately not counted. The two weeks before that date are dominated by probes, DNS drain checks and crawlers following the booking link, and nothing in the row distinguishes those from a person."
+      }
+    },
     {
       "id": 1,
       "type": "stat",
@@ -24,7 +40,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 0
+        "y": 3
       },
       "datasource": {
         "type": "vertamedia-clickhouse-datasource",
@@ -57,7 +73,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "No classified clicks in this range"
         },
         "overrides": []
       },
@@ -78,20 +95,21 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'"
+          "query": "SELECT\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')"
         }
-      ]
+      ],
+      "description": "Excludes clicks classified as bots (blob5), the monitor canary, and the ISS-36 verification rows.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited."
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Clicks over time by page",
-      "description": "One series per ?src= value. Counted with SUM(_sample_interval), which is how Analytics Engine undoes sampling.",
+      "description": "One series per ?src= value. Counted with SUM(_sample_interval), which is how Analytics Engine undoes sampling.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited.",
       "gridPos": {
         "h": 6,
         "w": 18,
         "x": 6,
-        "y": 0
+        "y": 3
       },
       "datasource": {
         "type": "vertamedia-clickhouse-datasource",
@@ -110,7 +128,8 @@
               "group": "A"
             },
             "showPoints": "never"
-          }
+          },
+          "noValue": "No classified clicks in this range"
         },
         "overrides": []
       },
@@ -145,7 +164,247 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    $timeSeries AS t,\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'\nGROUP BY src, t\nORDER BY t"
+          "query": "SELECT\n    $timeSeries AS t,\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\nGROUP BY src, t\nORDER BY t"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Clicks by placement",
+      "description": "Which control people actually press. blob4 carries the ?pos= parameter: 'inline' is the {{< book >}} shortcode in the prose, 'rail' is the sticky card on every post. ISS-33 adds a third for mobile, and it must use a new value rather than reusing 'rail', or the two cannot be told apart here.\n\nAn empty or 'unknown' placement means a direct call to /go/airbnb, or a row written before the parameter existed on 2026-08-20.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited.",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\nGROUP BY placement\nORDER BY clicks DESC"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "always",
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "noValue": "No classified clicks in this range"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Page and placement",
+      "description": "Where the click happened and which control did it. This is the pair that should decide where CTAs go -- a page with traffic and no clicks is a placement problem, not a content problem.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited.",
+      "gridPos": {
+        "h": 9,
+        "w": 16,
+        "x": 8,
+        "y": 9
+      },
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
+          "database": "",
+          "table": "booking_clicks",
+          "dateTimeType": "DATETIME",
+          "dateTimeColDataType": "timestamp",
+          "dateColDataType": "",
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "query": "SELECT\n    blob1 AS page,\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\nGROUP BY page, placement\nORDER BY clicks DESC"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "clicks",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "No classified clicks in this range"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "clicks"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Recent clicks",
+      "description": "Every recorded click, unfiltered by verdict on purpose -- this is where you check whether the classifier is getting it right. Only the canary and the ISS-36 verification rows are removed.\n\nAn empty 'bot' column means the row predates classification (2026-08-20 23:37 UTC). An empty 'ua' or 'network' means the same.\n\nThis panel reads the Analytics Engine SQL API through Infinity rather than the ClickHouse plugin. The plugin pivots any result containing a DateTime column into one series per row, which is right for a graph and useless for a table, and it returns nothing at all when no numeric column is present -- which is why this panel showed nothing from the day it was written until 2026-08-20.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "cf-web-analytics"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          },
+          "noValue": "No clicks in this range"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ua"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 320
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "at"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "cf-web-analytics"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "https://api.cloudflare.com/client/v4/accounts/__CF_ACCOUNT_ID__/analytics_engine/sql",
+          "url_options": {
+            "method": "POST",
+            "body_type": "raw",
+            "body_content_type": "text/plain",
+            "data": "SELECT timestamp, blob1 AS src, blob4 AS pos, blob5 AS verdict, blob3 AS country, blob7 AS network, blob6 AS ua FROM booking_clicks WHERE timestamp >= toDateTime('${__from:date:YYYY-MM-DD HH:mm:ss}') AND timestamp <= toDateTime('${__to:date:YYYY-MM-DD HH:mm:ss}') AND blob1 NOT IN ('/canary/', '/verify-iss36/') ORDER BY timestamp DESC LIMIT 100 FORMAT JSON"
+          },
+          "root_selector": "data",
+          "columns": [
+            {
+              "selector": "timestamp",
+              "text": "at",
+              "type": "string"
+            },
+            {
+              "selector": "verdict",
+              "text": "bot",
+              "type": "string"
+            },
+            {
+              "selector": "country",
+              "text": "country",
+              "type": "string"
+            },
+            {
+              "selector": "network",
+              "text": "network",
+              "type": "string"
+            },
+            {
+              "selector": "src",
+              "text": "page",
+              "type": "string"
+            },
+            {
+              "selector": "pos",
+              "text": "placement",
+              "type": "string"
+            },
+            {
+              "selector": "ua",
+              "text": "ua",
+              "type": "string"
+            }
+          ]
         }
       ]
     },
@@ -153,12 +412,12 @@
       "id": 3,
       "type": "table",
       "title": "Clicks by page",
-      "description": "ISS-29 acceptance: two clicks from different pages must be distinguishable by blob1.",
+      "description": "ISS-29 acceptance: two clicks from different pages must be distinguishable by blob1.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited.",
       "gridPos": {
         "h": 9,
-        "w": 10,
+        "w": 24,
         "x": 0,
-        "y": 6
+        "y": 27
       },
       "datasource": {
         "type": "vertamedia-clickhouse-datasource",
@@ -168,7 +427,8 @@
         "defaults": {
           "custom": {
             "align": "auto"
-          }
+          },
+          "noValue": "No classified clicks in this range"
         },
         "overrides": []
       },
@@ -198,54 +458,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob1 != '/canary/'\nGROUP BY src\nORDER BY clicks DESC"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "table",
-      "title": "Recent clicks",
-      "description": "Raw rows. This is the panel that answers ISS-29: click a Book now button and the row should appear here within about a minute.",
-      "gridPos": {
-        "h": 9,
-        "w": 14,
-        "x": 10,
-        "y": 6
-      },
-      "datasource": {
-        "type": "vertamedia-clickhouse-datasource",
-        "uid": "cf-analytics-engine"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "auto"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "showHeader": true
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "vertamedia-clickhouse-datasource",
-            "uid": "cf-analytics-engine"
-          },
-          "database": "",
-          "table": "booking_clicks",
-          "dateTimeType": "DATETIME",
-          "dateTimeColDataType": "timestamp",
-          "dateColDataType": "",
-          "format": "table",
-          "intervalFactor": 1,
-          "round": "0s",
-          "skip_comments": true,
-          "extrapolate": false,
-          "query": "SELECT\n    timestamp,\n    blob1 AS src,\n    blob2 AS referer,\n    blob3 AS country\nFROM booking_clicks\nWHERE $timeFilter\nORDER BY timestamp DESC\nLIMIT 100"
+          "query": "SELECT\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\nGROUP BY src\nORDER BY clicks DESC"
         }
       ]
     },
@@ -258,20 +471,23 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 36
       },
-      "panels": []
+      "panels": [],
+      "fieldConfig": {
+        "defaults": {}
+      }
     },
     {
       "id": 11,
       "type": "timeseries",
       "title": "Visits, CTA clicks, and conversion rate",
-      "description": "Booking clicks over visits, by day. The two numbers come from different APIs -- clicks from the booking_clicks Analytics Engine dataset, visits from Web Analytics over GraphQL -- and are joined here on the day.\n\nClicks are counted only when blob4 carries a placement, so probes, the daily canary and the DNS drain checks are excluded. That is why this panel reports far fewer clicks than 'Clicks in range' above, which excludes only the canary. It also means the series starts on 2026-08-20, when the placements shipped.\n\nVisits exclude EU visitors entirely: the Web Analytics site is set to 'Enable, excluding visitor data in the EU'. The query also filters bot: 0, matching the 'Exclude bots' default in Cloudflare's own UI. That matters more than it sounds: on 2026-08-20 it took visits from 19 to 9, so leaving it out would have halved the reported conversion rate.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. So this rate is overstated by however much of the numerator is machines. Tracked in ISS-36.",
+      "description": "Booking clicks over visits, by day. The two numbers come from different APIs -- clicks from the booking_clicks Analytics Engine dataset, visits from Web Analytics over GraphQL -- and are joined here on the day.\n\nClicks are counted only when blob4 carries a placement, so probes, the daily canary and the DNS drain checks are excluded. That is why this panel reports far fewer clicks than 'Clicks in range' above, which excludes only the canary. It also means the series starts on 2026-08-20, when the placements shipped.\n\nVisits exclude EU visitors entirely: the Web Analytics site is set to 'Enable, excluding visitor data in the EU'. The query also filters bot: 0, matching the 'Exclude bots' default in Cloudflare's own UI. That matters more than it sounds: on 2026-08-20 it took visits from 19 to 9, so leaving it out would have halved the reported conversion rate.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. Fixed on 2026-08-20 (ISS-36): the Worker now records a verdict in blob5 and these panels exclude bots on both sides. Rows written before that carry no verdict and are not excluded, so any range reaching back past 2026-08-20 still overstates.",
       "gridPos": {
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 16
+        "y": 37
       },
       "datasource": {
         "type": "datasource",
@@ -294,7 +510,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day"
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/') AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day"
         },
         {
           "refId": "B",
@@ -346,7 +562,8 @@
             "lineWidth": 1,
             "showPoints": "never",
             "axisPlacement": "left"
-          }
+          },
+          "noValue": "No classified clicks in this range"
         },
         "overrides": [
           {
@@ -445,12 +662,12 @@
       "id": 12,
       "type": "stat",
       "title": "Conversion rate in range",
-      "description": "Total CTA clicks divided by total visits over the selected range. Same filters as the panel to the left.\n\nDo not believe this number yet. The placements shipped on 2026-08-20, so the only clicks it can see are from the same day, and most of them are ours from testing the rail. Six clicks against nine visits reads as 67 percent, which is not a conversion rate, it is us clicking our own button. It becomes meaningful once real traffic arrives and our own clicks stop being most of the numerator.\n\nAt this volume a single click moves it by several points regardless.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. So this rate is overstated by however much of the numerator is machines. Tracked in ISS-36.",
+      "description": "Total CTA clicks divided by total visits over the selected range. Same filters as the panel to the left.\n\nDo not believe this number yet. The placements shipped on 2026-08-20, so the only clicks it can see are from the same day, and most of them are ours from testing the rail. Six clicks against nine visits reads as 67 percent, which is not a conversion rate, it is us clicking our own button. It becomes meaningful once real traffic arrives and our own clicks stop being most of the numerator.\n\nAt this volume a single click moves it by several points regardless.\n\nKnown bias, and it runs one way. The visits denominator excludes bots (bot: 0). The clicks numerator does not: src/worker.js records every request to /go/airbnb regardless of what sent it, and crawlers do follow that link -- 27 clicks from ZA and 9 from NL in the fourteen days to 2026-08-20 arrived in bursts across many pages, seconds apart, with no referer. Fixed on 2026-08-20 (ISS-36): the Worker now records a verdict in blob5 and these panels exclude bots on both sides. Rows written before that carry no verdict and are not excluded, so any range reaching back past 2026-08-20 still overstates.",
       "gridPos": {
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 16
+        "y": 37
       },
       "datasource": {
         "type": "datasource",
@@ -473,7 +690,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob4 NOT IN ('', 'unknown') AND blob1 != '/canary/'\nGROUP BY day\nORDER BY day",
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/') AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day",
           "hide": true
         },
         {
@@ -572,7 +789,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "No classified clicks in this range"
         },
         "overrides": [
           {
