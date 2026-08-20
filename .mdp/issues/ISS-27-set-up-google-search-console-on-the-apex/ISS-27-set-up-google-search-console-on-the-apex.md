@@ -64,8 +64,28 @@ log:
   - timestamp: 2026-08-20T21:17:52.691Z
     author: claude
     body: "Amendment to the note above: hugo.toml carries the same claim. Its first line reads 'The apex is canonical: a Cloudflare Redirect Rule 301s www -> apex.' So two files in the site repo describe a redirect that is not deployed, not one. Both are worth correcting when the rule is created, or sooner if the rule is not going to be."
+  - timestamp: 2026-08-20T21:53:24.756Z
+    author: claude
+    body: |-
+      Evidence that the missing www redirect is costing something real, not just theoretically. Cloudflare RUM for the last three days, grouped by requestHost:
+
+        highlandhideaway.ca        69 pageloads, 32 visits
+        www.highlandhideaway.ca     4 pageloads,  3 visits
+
+      So roughly 5 percent of page loads are arriving on www and staying there, because nothing redirects them. Those are real visitors on the non-canonical hostname, and Google can see the same pages on both. The canonical tags are doing their job, but this is exactly the duplicate-content surface the 301 is supposed to remove.
+
+      Worth noting the number is a floor, not a ceiling. The Web Analytics site is set to exclude EU visitors, so nobody in the EU is counted on either hostname.
+
+      Query, which works with the CF_AE_TOKEN already in grafana/.env:
+
+        viewer { accounts(filter:{accountTag:...}) {
+          rumPageloadEventsAdaptiveGroups(
+            filter:{datetimeHour_geq:..., datetimeHour_leq:...}, limit:5000
+          ) { count sum { visits } dimensions { siteTag requestHost } } } }
+
+      Filter on siteTag d6c7d92c76644885840437e3fdf3b867 for this site. That is NOT the beacon token in page source -- the two identifiers differ, and filtering on the beacon token returns an empty result that reads like no data.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-20T21:17:52.691Z
+updatedAt: 2026-08-20T21:53:24.756Z
 ---
 
 ## Requirement
