@@ -71,8 +71,8 @@ Infinity plugin talks to the second one. The same `CF_AE_TOKEN` works for both
 Four things about the numbers, all of which will otherwise look like faults:
 
 **The click counts differ from the panels above.** The conversion panels count
-only clicks whose `blob4` carries a placement (`inline`, `rail`, and whatever
-ISS-33 adds). Everything else was a direct call to `/go/airbnb` -- a probe, the
+only clicks whose `blob4` carries a placement (`inline`, `rail`, and `bar`,
+the mobile strip added by ISS-33 on 2026-08-20). Everything else was a direct call to `/go/airbnb` -- a probe, the
 daily canary, a DNS drain check -- or predates the placement parameter. Over
 the fourteen days to 2026-08-20 that is the difference between about 180 rows
 and 6. The older panels exclude only the canary, so they are counting mostly

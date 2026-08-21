@@ -2,7 +2,7 @@
 id: ISS-35
 title: Give the home page a hero photograph above the fold
 type: task
-status: To Do
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -15,9 +15,49 @@ parent: ISS-32
 relatedTo:
   - ISS-30
 checklist: []
-log: []
+log:
+  - timestamp: 2026-08-21T03:44:12.000Z
+    author: claude
+    body: |-
+      Branched, not yet merged, 2026-08-21. Site repo branch `iss-35-home-hero`, commit 33f07a0, PR https://github.com/hallb/highlandhideaway.ca/pull/8, stacked on PR 7 because it builds on the home page changes in ISS-34. Status stays In Progress until both merge and deploy.
+
+      The blocker cleared rather than being worked around: the owner chose the photograph on 2026-08-21 -- the same one the welcome post leads with, `/images/dock-autumn.jpg`. `content/_index.md` already named it as `featuredImage` and nothing rendered it, so most of this was wiring.
+
+      Built as the notes here asked: the existing `.hh-hero` treatment, reused rather than reinvented. The hero markup moved out of `layouts/posts/single.html` into `partials/hero.html` and both layouts now call it, which is the only way "reuse the treatment" stays true a year from now. The extraction is a pure refactor and was checked as one -- every post page in the built site is byte for byte identical after it.
+
+      This did need the `layouts/index.html` that ISS-34 deliberately did not add. That decision was right for ISS-34 and stopped being right here: the theme's home layout cannot put a hero above the content, so there was nothing left to configure. It is written the way `single.html` is -- a purpose-built replacement with the partials it calls listed in the header, not a copy of DoIt's home to keep in step forever.
+
+      The find worth carrying forward: `params.home.posts.enable = false` from ISS-34 is not made redundant by the new layout, and removing it is a live trap. `baseof.html` calls `head/paginator.html` before any layout runs, so the home page gets paginated whether or not a layout draws a paginator. With the flag removed the build published /page/1/, /page/2/ and /page/3/ again, each a full copy of the new home page at its own URL -- three near-duplicates of the brand page, days before the first crawl (ISS-27). Caught by diffing the built output against the previous build, not by reading the template. Both the flag and the layout header now say so.
+
+      Alt text is a new `heroAlt` front matter key describing the photograph rather than the property. The page description, which is what the alt fell back to, describes the cottage and tells a screen reader nothing about the image standing in for it. Posts read the same key through the shared partial; none set it yet, which is why their output did not move.
+
+      DoIt's profile block is no longer drawn -- the hero carries the title, and the page is allowed exactly one h1. Its config stays in hugo.toml so deleting `layouts/index.html` restores the old home page exactly. The home page `<head>` was diffed and is byte-identical, so no Open Graph, canonical or JSON-LD moved with it.
+
+      Acceptance verified in headless Chromium, not assumed: the photograph is above the fold at 390x844 (300px tall) and at 1440x900 (420px), carries the 800/1200/1600w WebP srcset with loading=eager and explicit dimensions, and has the alt text. One h1, eleven cards, every internal link resolves, no /page/N/ published, both palettes render, `node script/test` passes.
+  - timestamp: 2026-08-21T04:02:30.000Z
+    author: claude
+    body: |-
+      Not yet on main, 2026-08-21, and the reason is worth recording because it will happen again.
+
+      PR 8 was opened stacked on the `iss-32-34` branch so its diff showed ISS-35 alone. GitHub retargets a stacked PR to main only when the base branch is deleted after the parent merges. PR 7 merged at 03:24:13Z and PR 8 at 03:24:36Z -- twenty-three seconds later, before the base branch was deleted -- so PR 8 squash-merged into `iss-32-34`, a branch that had already been merged into main. Both PRs report MERGED. The hero commit never reached main, and the deployed site showed it: the booking bar from PR 7 was live and the home page had no .hh-hero.
+
+      Re-landed as PR https://github.com/hallb/highlandhideaway.ca/pull/9, branch `iss-35-hero-to-main`, a cherry-pick of the squashed commit 536709a straight onto main. It applied clean -- main's tree at b1d8f8c was identical to the tip the commit was written against -- and the build from it is byte-identical to the build verified on PR 8, home page and all 22 posts.
+
+      Lesson for the next stacked PR: either merge the parent, delete its branch, wait for the retarget, and then merge the child, or open the child against main from the start and accept the noisier diff.
+
+      Status stays In Progress until PR 9 merges and deploys.
+  - timestamp: 2026-08-21T04:18:00.000Z
+    author: claude
+    body: |-
+      Done, 2026-08-21. Merged as 8ab58b7 (PR 9, the cherry-pick onto main after PR 8 merged into the wrong branch) and deployed -- the Cloudflare workflow ran on the push to main and succeeded in 1m28s.
+
+      Verified against the live site, and rendered rather than only read. https://www.highlandhideaway.ca/ serves .hh-hero with the photograph, and in headless Chromium against the live URL the image actually decodes: at 390x844 the hero is 300px tall and picks the 800w source, at 1440x900 it is 420px and picks the 1600w source, both above the fold, with no failed or 4xx requests on the page. All three derivatives serve as image/webp (47KB at 800w, 153KB at 1600w).
+
+      The alt text is the heroAlt string, not the page description. One h1, "Highland Hideaway", now coming from the hero rather than the theme profile block, which is gone from the published HTML. Eleven cards render.
+
+      Worth noting for anyone comparing byte counts: the home page grew only 59 bytes despite gaining a hero, because the profile block and its avatar srcset left at the same time.
 createdAt: 2026-08-20T21:10:30.174Z
-updatedAt: 2026-08-20T21:10:30.174Z
+updatedAt: 2026-08-21T03:37:46.497Z
 ---
 
 ## Requirement

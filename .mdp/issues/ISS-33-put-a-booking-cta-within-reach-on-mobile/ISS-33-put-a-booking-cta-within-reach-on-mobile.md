@@ -2,7 +2,7 @@
 id: ISS-33
 title: Put a booking CTA within reach on mobile
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,9 +15,33 @@ parent: ISS-32
 relatedTo:
   - ISS-29
 checklist: []
-log: []
+log:
+  - timestamp: 2026-08-21T02:46:49.651Z
+    author: claude
+    body: |-
+      Branched, not yet merged, 2026-08-21. Site repo branch `iss-32-34`, commit 33f9020, PR https://github.com/hallb/highlandhideaway.ca/pull/7. Status stays In Progress until that merges and deploys.
+
+      Built as the first of the two options here -- a slim bar below 900px -- with one design decision the issue left open. It is `position: sticky; bottom: 0` as the last child of `.hh-post`, not `position: fixed`. A sticky element can only travel inside its own parent, so the bar rides the bottom of the viewport for the length of the article and then comes to rest at the end of the post, above the footer. Fixed would have sat over whatever the page ended with, and the usual remedy for that is padding on the footer, which lands on every page at that width whether or not a bar was rendered there. Measured at the very bottom of a post: the bar rests at 705-772 and the footer occupies 772-844, fully visible.
+
+      The second option, moving the card into the article flow, was not taken. It puts the CTA at one fixed point in a page of variable length, and a reader who scrolls past it has nothing after it.
+
+      The placement reports `?pos=bar`. Named for the control rather than the viewport, which keeps it in the same family as `inline` and `rail` and stays accurate if the bar is ever shown at another breakpoint. blob4 is unchanged in shape and still appended, so no row already written is reinterpreted.
+
+      One thing this issue did not ask for and the telemetry constraint turns out to require: the rail card is now hidden below 900px rather than left collapsed at the foot. Left in place it would have been a second booking CTA a screen apart from the first, and -- the load-bearing half -- it would still have reported `?pos=rail`. The dashboard groups on blob4, so those clicks would have gone into the desktop bucket and the rail/bar comparison this issue exists to enable would have been lost from the other direction. `.hh-book__ask` stays visible: it is the only route to the contact page from the foot of a post.
+
+      Acceptance verified in headless Chromium at 390x844 across all 22 posts, not assumed. Before: no booking control on the first screen of any post except /posts/contact/, the first one sitting 75-86% down the page. After: the bar is on screen at scroll 0 on every post, and still on screen mid-scroll. Desktop measured at 1440x900 on the same two builds -- the rail reports top=524/361/229/24 at scrollY 0/400/1200/2400 before and after, identical, and the bar is display:none. Both palettes render; the bar reuses --hh-btn-bg on --hh-surface, pairs already checked for contrast in this file.
+
+      The dashboard needed no query change -- the placement panels group on blob4 generically, so `bar` appears on its own. Their descriptions and grafana/README.md are updated to name it, since both previously said "whatever ISS-33 adds".
+
+      That browser check is not in the repo. It needs Playwright and this repo still has no harness for it: ISS-17 and ISS-20 remain the place for it.
+  - timestamp: 2026-08-21T04:02:30.000Z
+    author: claude
+    body: |-
+      Done, 2026-08-21. Merged as b1d8f8c (squash of PR 7) and deployed. Verified against the live site, not the build: https://www.highlandhideaway.ca/posts/welcome/ carries .hh-bookbar, and /go/airbnb?src=%2Fverify-iss33%2F&pos=bar answers 302 to the listing, so the new placement records and redirects end to end.
+
+      One note for whoever reads the dashboard next. That verification click was sent with curl, so the Worker classified it as a bot and it is filtered out of every panel except "Recent clicks", which is deliberately unfiltered so the classifier can be audited. It carries src=/verify-iss33/ and pos=bar. It is not excluded by name the way /canary/ and /verify-iss36/ are, because it does not need to be -- the bot verdict already removes it.
 createdAt: 2026-08-20T21:10:08.297Z
-updatedAt: 2026-08-20T21:10:08.297Z
+updatedAt: 2026-08-21T03:32:22.821Z
 ---
 
 ## Requirement
