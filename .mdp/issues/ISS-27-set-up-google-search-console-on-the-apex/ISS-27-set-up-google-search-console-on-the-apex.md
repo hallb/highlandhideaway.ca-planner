@@ -21,7 +21,7 @@ checklist:
   - text: Submit https://highlandhideaway.ca/sitemap.xml
     done: true
   - text: Create the www->apex Redirect Rule in Cloudflare (301 preserving path and query)
-    done: false
+    done: true
   - text: "Once the redirect is live: confirm www URLs show as Page with redirect in Coverage"
     done: false
 log:
@@ -84,8 +84,23 @@ log:
           ) { count sum { visits } dimensions { siteTag requestHost } } } }
 
       Filter on siteTag d6c7d92c76644885840437e3fdf3b867 for this site. That is NOT the beacon token in page source -- the two identifiers differ, and filtering on the beacon token returns an empty result that reads like no data.
+  - timestamp: 2026-08-21T12:20:00.000Z
+    author: claude
+    body: |-
+      The www->apex Redirect Rule is created and verified live. Deployed as Cloudflare's built-in "Redirect from WWW to root [Template]": wildcard pattern https://www.* -> https://${1}, 301, preserve query string checked. The www DNS record is a Workers Custom Domain and therefore always proxied -- the dashboard's "this rule may not apply to your traffic" warning during setup was a false positive, not a real DNS gap.
+
+      Verified by curl:
+
+        http://www.highlandhideaway.ca/posts/welcome/  -> 301 https://www.highlandhideaway.ca/posts/welcome/
+        https://www.highlandhideaway.ca/posts/welcome/ -> 301 https://highlandhideaway.ca/posts/welcome/
+
+      Path and query both preserved, as required. Plain http://www takes two hops because SSL/TLS -> Edge Certificates -> "Always Use HTTTPS" was enabled the same session, and it fires before the rule can match -- the rule's wildcard pattern only matches an https:// request. https://www, which is what Search Console, the sitemap, and internal links all already use, gets a single hop straight to the apex. A scheme-independent custom filter expression (http.host eq "www.highlandhideaway.ca") would collapse this to one hop in every case; left as a polish item, not required for this issue.
+
+      wrangler.toml and hugo.toml both corrected to describe the rule as created rather than missing.
+
+      Fourth checklist item stays open: Coverage in Search Console has no crawl data for the www hostname yet, so "Page with redirect" cannot be confirmed until Google crawls it. Revisit once first data lands (~2026-08-21/22 per the earlier estimate).
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-20T21:53:24.756Z
+updatedAt: 2026-08-21T12:20:00.000Z
 ---
 
 ## Requirement
