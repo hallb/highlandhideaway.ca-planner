@@ -29,6 +29,14 @@ log:
       Two of the three children are branched, 2026-08-21. ISS-33 and ISS-34 are on site repo branch `iss-32-34`, PR https://github.com/hallb/highlandhideaway.ca/pull/7, commits 33f9020 and 3608c85. This stays In Progress: ISS-35 is untouched and still blocked on the owner choosing a photograph, which is the whole reason it was split out.
 
       The measurement table this issue was meant to keep did not survive the split -- the body was left empty. Restored below, from measurements taken against the built site before and after the two changes, so the parent again holds the numbers its children were written from.
+  - timestamp: 2026-08-21T03:44:12.000Z
+    author: claude
+    body: |-
+      All three children are branched, 2026-08-21. ISS-35 is on site repo branch `iss-35-home-hero`, commit 33f07a0, PR https://github.com/hallb/highlandhideaway.ca/pull/8, stacked on PR 7 which carries ISS-33 and ISS-34.
+
+      The blocker that caused the split is gone: the owner chose the home page photograph on 2026-08-21, the same one the welcome post leads with. Nothing in this issue is now waiting on a decision -- it stays In Progress only until the two PRs merge and deploy.
+
+      Home page measurements, updated for the hero. It is 2252px at 390px wide, against 2054px after ISS-34 alone and 9585px before it; still one h1; the hero is 300px tall at 390px and 420px at 1440px, above the fold at both.
 createdAt: 2026-08-20T12:06:02.884Z
 updatedAt: 2026-08-21T02:46:49.651Z
 ---
