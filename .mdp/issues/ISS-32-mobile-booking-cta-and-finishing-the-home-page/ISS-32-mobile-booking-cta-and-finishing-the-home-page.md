@@ -2,7 +2,7 @@
 id: ISS-32
 title: Mobile booking CTA, and finishing the home page
 type: task
-status: In Progress
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -37,8 +37,16 @@ log:
       The blocker that caused the split is gone: the owner chose the home page photograph on 2026-08-21, the same one the welcome post leads with. Nothing in this issue is now waiting on a decision -- it stays In Progress only until the two PRs merge and deploy.
 
       Home page measurements, updated for the hero. It is 2252px at 390px wide, against 2054px after ISS-34 alone and 9585px before it; still one h1; the hero is 300px tall at 390px and 420px at 1440px, above the fold at both.
+  - timestamp: 2026-08-21T04:18:00.000Z
+    author: claude
+    body: |-
+      Done, 2026-08-21. All three children are merged and deployed: ISS-33 and ISS-34 in b1d8f8c (PR 7), ISS-35 in 8ab58b7 (PR 9, after PR 8 merged into an already-merged branch and never reached main -- the detail is in ISS-35's log).
+
+      Live state on www.highlandhideaway.ca, verified rather than assumed: every post carries the sticky booking bar below 900px reporting ?pos=bar, and the sticky rail card above it reporting ?pos=rail; the home page opens on the dock photograph, returns exactly one h1, renders the three curated card groups, and /page/2/ is a 404.
+
+      The measurement table in the body of this issue is the before-and-after for the two page changes and still reads true, with one number superseded: the home page is 2252px at 390px wide rather than 2054px, because the hero was added after that table was written. 9585px is what it was before any of this.
 createdAt: 2026-08-20T12:06:02.884Z
-updatedAt: 2026-08-21T02:46:49.651Z
+updatedAt: 2026-08-21T03:37:46.778Z
 ---
 
 ## Measurements

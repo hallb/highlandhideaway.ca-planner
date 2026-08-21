@@ -2,7 +2,7 @@
 id: ISS-35
 title: Give the home page a hero photograph above the fold
 type: task
-status: In Progress
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -46,8 +46,18 @@ log:
       Lesson for the next stacked PR: either merge the parent, delete its branch, wait for the retarget, and then merge the child, or open the child against main from the start and accept the noisier diff.
 
       Status stays In Progress until PR 9 merges and deploys.
+  - timestamp: 2026-08-21T04:18:00.000Z
+    author: claude
+    body: |-
+      Done, 2026-08-21. Merged as 8ab58b7 (PR 9, the cherry-pick onto main after PR 8 merged into the wrong branch) and deployed -- the Cloudflare workflow ran on the push to main and succeeded in 1m28s.
+
+      Verified against the live site, and rendered rather than only read. https://www.highlandhideaway.ca/ serves .hh-hero with the photograph, and in headless Chromium against the live URL the image actually decodes: at 390x844 the hero is 300px tall and picks the 800w source, at 1440x900 it is 420px and picks the 1600w source, both above the fold, with no failed or 4xx requests on the page. All three derivatives serve as image/webp (47KB at 800w, 153KB at 1600w).
+
+      The alt text is the heroAlt string, not the page description. One h1, "Highland Hideaway", now coming from the hero rather than the theme profile block, which is gone from the published HTML. Eleven cards render.
+
+      Worth noting for anyone comparing byte counts: the home page grew only 59 bytes despite gaining a hero, because the profile block and its avatar srcset left at the same time.
 createdAt: 2026-08-20T21:10:30.174Z
-updatedAt: 2026-08-21T03:10:38.214Z
+updatedAt: 2026-08-21T03:37:46.497Z
 ---
 
 ## Requirement
