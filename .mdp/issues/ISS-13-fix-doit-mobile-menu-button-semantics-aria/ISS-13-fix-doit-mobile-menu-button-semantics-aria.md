@@ -2,7 +2,7 @@
 id: ISS-13
 title: "Fix DoIt mobile menu: button semantics, aria-expanded, keyboard (override or fork)"
 type: task
-status: In Progress
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,6 +15,10 @@ parent: null
 relatedTo: []
 checklist: []
 log:
+  - timestamp: 2026-08-21T03:45:00.000Z
+    author: claude
+    body: |-
+      PR #6 merged to main and the Cloudflare deploy workflow ran successfully (run 32439613958, completed 2026-08-21T02:22:19Z). Closing out -- the merge-and-deploy condition noted below is satisfied.
   - timestamp: 2026-08-21T02:04:13.258Z
     author: claude
     body: |-
@@ -32,7 +36,7 @@ log:
 
       That browser check is not in the repo. It needs Playwright, and this repo has no package.json and no browser-test harness to put it in -- ISS-17 and ISS-20 are open for exactly that, and it belongs there rather than smuggled in here.
 createdAt: 2026-03-25T03:01:36.825Z
-updatedAt: 2026-08-21T02:04:13.258Z
+updatedAt: 2026-08-21T03:45:00.000Z
 ---
 
 ## Requirement
