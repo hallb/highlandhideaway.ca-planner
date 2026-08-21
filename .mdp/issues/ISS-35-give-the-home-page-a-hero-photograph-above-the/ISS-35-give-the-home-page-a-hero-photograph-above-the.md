@@ -34,6 +34,18 @@ log:
       DoIt's profile block is no longer drawn -- the hero carries the title, and the page is allowed exactly one h1. Its config stays in hugo.toml so deleting `layouts/index.html` restores the old home page exactly. The home page `<head>` was diffed and is byte-identical, so no Open Graph, canonical or JSON-LD moved with it.
 
       Acceptance verified in headless Chromium, not assumed: the photograph is above the fold at 390x844 (300px tall) and at 1440x900 (420px), carries the 800/1200/1600w WebP srcset with loading=eager and explicit dimensions, and has the alt text. One h1, eleven cards, every internal link resolves, no /page/N/ published, both palettes render, `node script/test` passes.
+  - timestamp: 2026-08-21T04:02:30.000Z
+    author: claude
+    body: |-
+      Not yet on main, 2026-08-21, and the reason is worth recording because it will happen again.
+
+      PR 8 was opened stacked on the `iss-32-34` branch so its diff showed ISS-35 alone. GitHub retargets a stacked PR to main only when the base branch is deleted after the parent merges. PR 7 merged at 03:24:13Z and PR 8 at 03:24:36Z -- twenty-three seconds later, before the base branch was deleted -- so PR 8 squash-merged into `iss-32-34`, a branch that had already been merged into main. Both PRs report MERGED. The hero commit never reached main, and the deployed site showed it: the booking bar from PR 7 was live and the home page had no .hh-hero.
+
+      Re-landed as PR https://github.com/hallb/highlandhideaway.ca/pull/9, branch `iss-35-hero-to-main`, a cherry-pick of the squashed commit 536709a straight onto main. It applied clean -- main's tree at b1d8f8c was identical to the tip the commit was written against -- and the build from it is byte-identical to the build verified on PR 8, home page and all 22 posts.
+
+      Lesson for the next stacked PR: either merge the parent, delete its branch, wait for the retarget, and then merge the child, or open the child against main from the start and accept the noisier diff.
+
+      Status stays In Progress until PR 9 merges and deploys.
 createdAt: 2026-08-20T21:10:30.174Z
 updatedAt: 2026-08-21T03:10:38.214Z
 ---

@@ -2,7 +2,7 @@
 id: ISS-33
 title: Put a booking CTA within reach on mobile
 type: task
-status: In Progress
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -34,8 +34,14 @@ log:
       The dashboard needed no query change -- the placement panels group on blob4 generically, so `bar` appears on its own. Their descriptions and grafana/README.md are updated to name it, since both previously said "whatever ISS-33 adds".
 
       That browser check is not in the repo. It needs Playwright and this repo still has no harness for it: ISS-17 and ISS-20 remain the place for it.
+  - timestamp: 2026-08-21T04:02:30.000Z
+    author: claude
+    body: |-
+      Done, 2026-08-21. Merged as b1d8f8c (squash of PR 7) and deployed. Verified against the live site, not the build: https://www.highlandhideaway.ca/posts/welcome/ carries .hh-bookbar, and /go/airbnb?src=%2Fverify-iss33%2F&pos=bar answers 302 to the listing, so the new placement records and redirects end to end.
+
+      One note for whoever reads the dashboard next. That verification click was sent with curl, so the Worker classified it as a bot and it is filtered out of every panel except "Recent clicks", which is deliberately unfiltered so the classifier can be audited. It carries src=/verify-iss33/ and pos=bar. It is not excluded by name the way /canary/ and /verify-iss36/ are, because it does not need to be -- the bot verdict already removes it.
 createdAt: 2026-08-20T21:10:08.297Z
-updatedAt: 2026-08-21T02:46:49.118Z
+updatedAt: 2026-08-21T03:32:22.821Z
 ---
 
 ## Requirement
