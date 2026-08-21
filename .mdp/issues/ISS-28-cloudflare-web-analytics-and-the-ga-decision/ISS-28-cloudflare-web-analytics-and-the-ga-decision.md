@@ -2,7 +2,7 @@
 id: ISS-28
 title: Cloudflare Web Analytics, and decide on Google Analytics
 type: task
-status: In Progress
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -26,8 +26,8 @@ checklist:
     done: true
   - text: Merge the branch and deploy
     done: true
-  - text: Confirm the Cloudflare Web Analytics beacon is actually injecting -- regressed as of 2026-08-21, see log
-    done: false
+  - text: Confirm the Cloudflare Web Analytics beacon is actually injecting
+    done: true
 log:
   - timestamp: 2026-08-20T21:35:32.897Z
     author: claude
@@ -69,8 +69,20 @@ log:
       Net effect: the site currently has no analytics running at all. GA is gone (good, correctly so) but nothing replaced it in practice, even though the config says it should have. Leaving status as In Progress rather than Done, because the acceptance criterion 'traffic is visible without a consent banner' is not actually met right now -- traffic isn't visible, period. Checklist item split: the old combined 'confirm beacon is live and close ISS-11' item is gone, replaced with a standalone beacon-injection item reflecting the regression.
 
       ISS-11 is being closed anyway, on explicit instruction, and I think that's correct despite this: ISS-11 was scoped to the GA consent question specifically, and that's resolved regardless of whether Cloudflare's beacon happens to be firing right now, because Cloudflare Web Analytics is cookieless whether it's working or not -- it was never the thing that could raise a consent obligation. The beacon regression is a traffic-visibility problem, tracked here, not a privacy problem.
+  - timestamp: 2026-08-21T13:30:36.016Z
+    author: claude
+    body: |-
+      Retraction of the 'regression' claim above -- I was wrong, not the beacon.
+
+      Ben checked the Cloudflare dashboard and the local Grafana directly: both show live data, contradicting my curl-based finding. Re-verified properly by querying the Analytics Engine GraphQL API (rumPageloadEventsAdaptiveGroups, siteTag d6c7d92c76644885840437e3fdf3b867) for the last 48 hours: 100 pageload events, 29 visits, on highlandhideaway.ca, plus 5 pageloads / 4 visits on www.highlandhideaway.ca (residual pre-redirect traffic). The beacon has been firing the whole time.
+
+      Root cause of my false negative: Cloudflare's automatic-injection decision is gated on bot-management scoring, not just the User-Agent header. curl with a spoofed Chrome UA still fingerprints as a bot at the TLS/header level, so it never got the injected script, and I mistook 'my request didn't get it' for 'no request gets it.' The 2026-08-20 log entry that first established this exact pitfall (curl vs browser UA) should have been the warning -- I repeated the same class of mistake with a more convincing-looking but still non-browser request.
+
+      Lesson for next time: verify beacon/analytics presence against the Analytics Engine or GraphQL RUM API (or a real browser network tab), never against a curl fetch, spoofed UA or not -- it cannot pass Cloudflare's bot check.
+
+      Checklist item corrected and checked. All items done; acceptance criterion (traffic visible without a consent banner) is met. Status -> Done.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-21T12:53:09.349Z
+updatedAt: 2026-08-21T13:30:36.016Z
 ---
 
 ## Requirement
