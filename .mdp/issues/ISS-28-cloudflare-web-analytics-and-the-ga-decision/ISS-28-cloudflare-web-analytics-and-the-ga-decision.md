@@ -25,8 +25,8 @@ checklist:
   - text: Record the dashboard dependency in wrangler.toml
     done: true
   - text: Merge the branch and deploy
-    done: false
-  - text: Confirm the beacon is live and close ISS-11
+    done: true
+  - text: Confirm the Cloudflare Web Analytics beacon is actually injecting -- regressed as of 2026-08-21, see log
     done: false
 log:
   - timestamp: 2026-08-20T21:35:32.897Z
@@ -57,8 +57,20 @@ log:
       Also corrected the header of hugo.toml, which asserted the www->apex Redirect Rule exists (ISS-27).
 
       Verified: no gtag and no beacon in ./public; beacon present at the edge under a browser User-Agent. Branch is ready to merge -- no token needed, nothing outstanding.
+  - timestamp: 2026-08-21T12:53:09.349Z
+    author: claude
+    body: |-
+      Correcting the planner against actual repo state, checked 2026-08-21.
+
+      The branch was merged. git log on the site repo main shows 898eb0a 'Merge the Google Analytics removal' already on main, ahead of today's ISS-27 commit. hugo.toml on main has params.analytics.enable = false with the removal comment dated 2026-08-20. The GitHub Actions deploy for the current main HEAD (24bc5f2) ran and succeeded at 2026-08-21T12:25 UTC. Fetching the live homepage with a browser User-Agent shows no gtag, no googletagmanager.com, nothing GA-related in the served HTML. So 'Merge the branch and deploy' is done -- it happened days ago, the planner just never caught up. Checked off.
+
+      New problem found while verifying the other half of that checklist item. The Cloudflare Web Analytics beacon is NOT currently injecting. Tested / and /posts/welcome/ with three different browser User-Agents (desktop Chrome, Safari, mobile Safari), cache-busting query strings, and Cache-Control: no-cache -- zero matches for cloudflareinsights or cf-beacon in any response. This directly contradicts the 2026-08-20 21:46 log entry above, which confirmed injection working with token 2e7e343f80d04a2d9f9d49013c3c2d92 on the same two pages. Something changed in the four days since -- possibly the Web Analytics site's automatic-setup toggle got flipped off, possibly something else. No token in this project has Analytics dashboard access to check directly.
+
+      Net effect: the site currently has no analytics running at all. GA is gone (good, correctly so) but nothing replaced it in practice, even though the config says it should have. Leaving status as In Progress rather than Done, because the acceptance criterion 'traffic is visible without a consent banner' is not actually met right now -- traffic isn't visible, period. Checklist item split: the old combined 'confirm beacon is live and close ISS-11' item is gone, replaced with a standalone beacon-injection item reflecting the regression.
+
+      ISS-11 is being closed anyway, on explicit instruction, and I think that's correct despite this: ISS-11 was scoped to the GA consent question specifically, and that's resolved regardless of whether Cloudflare's beacon happens to be firing right now, because Cloudflare Web Analytics is cookieless whether it's working or not -- it was never the thing that could raise a consent obligation. The beacon regression is a traffic-visibility problem, tracked here, not a privacy problem.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-20T21:46:28.764Z
+updatedAt: 2026-08-21T12:53:09.349Z
 ---
 
 ## Requirement
