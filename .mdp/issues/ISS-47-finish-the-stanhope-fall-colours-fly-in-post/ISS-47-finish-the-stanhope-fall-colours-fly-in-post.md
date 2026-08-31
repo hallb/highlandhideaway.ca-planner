@@ -2,7 +2,7 @@
 id: ISS-47
 title: Finish the Stanhope Fall Colours Fly-In post
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -16,28 +16,42 @@ relatedTo:
   - ISS-48
 checklist:
   - text: Confirm the supplied flyer is the 2026 edition -- it prints no year
+    done: true
+  - text: "Feature line-up: resolved by following the flyer, not the township's 2024 write-ups"
+    done: true
+  - text: "Camping: CUT. Pilots-only on the flyer, and this page's audience is not pilots"
+    done: true
+  - text: "NOT ANSWERED: parking arrangements. Not published anywhere, so not on the page"
     done: false
-  - text: Confirm the 2026 feature line-up against a current township source
+  - text: "NOT ANSWERED: scenic flight pricing. Not published anywhere, so not on the page"
     done: false
-  - text: Confirm camping on 25 Sept is pilots-only and find the pre-registration deadline
+  - text: Measure the drive to 1168 Stanhope Airport Road -- 20 minutes via Highway 118
+    done: true
+  - text: Check availability for 25-26 Sept -- the property is free that weekend
+    done: true
+  - text: "NOT ANSWERED: rain date or weather cancellation policy"
     done: false
-  - text: Confirm admission and parking are free for 2026
+  - text: Add Event schema markup
+    done: true
+  - text: "AFTER THE EVENT: convert the page on 27 Sept -- recap or the 2027 date"
     done: false
-  - text: Confirm scenic flights are running and whether pricing is published
-    done: false
-  - text: Measure the drive to 1168 Stanhope Airport Road
-    done: false
-  - text: Check availability for 25-26 Sept before pointing a CTA at that weekend
-    done: false
-  - text: Check for a rain date or weather cancellation policy
-    done: false
-  - text: Decide whether to add Event schema markup and whether the theme supports it
-    done: false
-  - text: Convert the page on 27 Sept -- recap or the 2027 date
-    done: false
-log: []
+log:
+  - timestamp: 2026-08-31T14:00:00.000Z
+    author: claude
+    body: |-
+      Closed at Ben's direction on 2026-08-31. The post is live at /posts/stanhope-fall-colours-fly-in/ and has been since 2026-08-24, with Event schema. Site repo commit 39d6875.
+
+      Closing this does not mean the checklist was finished, so the items above now say which they are. Four were resolved, two were resolved by a decision rather than an answer, and three were never answered.
+
+      Resolved: the flyer is the 2026 edition, the drive is 20 minutes via Highway 118, the property is free that weekend, and the Event schema is in.
+
+      Resolved by decision: the feature line-up follows the flyer rather than the township's 2024 write-ups, so the 2024 beer garden, aviation careers booth and firefighting displays are deliberately absent and must not be added without a current source. Camping is cut entirely, being pilots-only on the flyer.
+
+      Never answered, and therefore absent from the page rather than guessed at: parking arrangements, scenic flight pricing, and whether there is a rain date or a weather cancellation policy. None of it is published anywhere. Do not fill these in from memory if the page is edited later.
+
+      One item is a future task rather than an unfinished one. The page needs converting after 27 September, either to a recap or to the 2027 date, and closing this issue does not do that. The event is 26 September 2026, four weeks out at time of closing, so anything that does get published between now and then is still worth folding in.
 createdAt: 2026-08-22T13:26:29.911Z
-updatedAt: 2026-08-22T13:27:51.793Z
+updatedAt: 2026-08-31T14:00:00.000Z
 ---
 
 ## Requirement

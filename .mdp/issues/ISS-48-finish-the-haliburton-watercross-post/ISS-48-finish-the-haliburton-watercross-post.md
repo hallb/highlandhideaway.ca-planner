@@ -2,7 +2,7 @@
 id: ISS-48
 title: Finish the Haliburton watercross post
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -15,30 +15,30 @@ parent: null
 relatedTo:
   - ISS-47
 checklist:
-  - text: Confirm the round is still on by email to OWRA
+  - text: "AWAITING REPLY: confirm the round is still on. Emailed OWRA 2026-08-24"
     done: false
-  - text: Confirm spectator admission -- the free-to-watch note is from 2022
+  - text: "AWAITING REPLY: spectator admission. The free-to-watch note is from 2022"
     done: false
-  - text: Get start times and the daily schedule
+  - text: "AWAITING REPLY: start times and the daily schedule"
     done: false
-  - text: Confirm spectator parking at Pinestone
+  - text: "AWAITING REPLY: spectator parking at Pinestone"
     done: false
-  - text: Check whether Pinestone runs food service or Stone 21 alongside
+  - text: "AWAITING REPLY: whether Pinestone runs food service or Stone 21 alongside"
     done: false
-  - text: Confirm whether puddle jump runs at this round
+  - text: "AWAITING REPLY: whether puddle jump runs at this round"
     done: false
-  - text: Measure the drive to Pinestone
-    done: false
-  - text: Check availability for 26-27 Sept and cross-link the fly-in post
-    done: false
-  - text: Decide whether to name the local racer from the 2022 Echo piece
-    done: false
+  - text: Measure the drive to Pinestone -- fifteen minutes, same road
+    done: true
+  - text: Cross-link the fly-in post, and fall colours once it published
+    done: true
+  - text: "Local racer from the 2022 Echo piece: decided against naming"
+    done: true
 log:
   - timestamp: 2026-08-22T13:34:45.342Z
     author: claude
     body: Reframed the 26 September overlap with ISS-47. Two posts pointing at one Saturday is more demand against fixed supply, not cannibalisation, and the pair is a better weekend pitch than either event alone. The scarce resource is drafting time, not inventory.
 createdAt: 2026-08-22T13:26:48.368Z
-updatedAt: 2026-08-22T13:34:45.342Z
+updatedAt: 2026-08-31T14:00:00.000Z
 ---
 
 ## Requirement
