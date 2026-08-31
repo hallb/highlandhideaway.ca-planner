@@ -2,7 +2,7 @@
 id: ISS-27
 title: Set up Google Search Console on the apex
 type: task
-status: In Progress
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -23,7 +23,7 @@ checklist:
   - text: Create the www->apex Redirect Rule in Cloudflare (301 preserving path and query)
     done: true
   - text: "Once the redirect is live: confirm www URLs show as Page with redirect in Coverage"
-    done: false
+    done: true
 log:
   - timestamp: 2026-08-19T04:13:08.609Z
     author: claude
@@ -99,8 +99,18 @@ log:
       wrangler.toml and hugo.toml both corrected to describe the rule as created rather than missing.
 
       Fourth checklist item stays open: Coverage in Search Console has no crawl data for the www hostname yet, so "Page with redirect" cannot be confirmed until Google crawls it. Revisit once first data lands (~2026-08-21/22 per the earlier estimate).
+  - timestamp: 2026-08-31T13:00:00.000Z
+    author: claude
+    body: |-
+      Closed. Ben confirmed on 2026-08-31 that Coverage now reports the www URLs as "Page with redirect", which was the last open item and the check that the apex-canonical work in ISS-25 actually took. The Redirect Rule went live on 2026-08-21, so Google took roughly ten days to crawl the hostname and report it.
+
+      That closes the loop on the whole issue. The property is verified, the sitemap is submitted and now serving 29 URLs rather than the 23 it carried in August, the redirect is deployed and confirmed, and the duplicate-content surface the canonical tags were papering over is gone.
+
+      Ben also requested indexing on the two posts published on 2026-08-31, /posts/corduroy-enduro/ and /posts/fall-colours/, rather than waiting for a natural crawl. Both are date-sensitive: the Corduroy event runs 17-20 September, and fall colour searches start well before the mid-October peak. On a property Google has known for twelve days, a natural crawl was not going to arrive in time for either.
+
+      What this issue was always for is now the live question. Query data was estimated to become useful between 2026-09-02 and 2026-09-16, so it is about to land. The queries sitting at position 8-15 are the cheap wins and they should decide which of the ISS-31 children get finished first. The audit's own finding still stands and no query data will overturn it: the pages are thin, and depth on the pages worth ranking is the work.
 createdAt: 2026-08-18T21:40:00.000Z
-updatedAt: 2026-08-21T12:20:00.000Z
+updatedAt: 2026-08-31T13:00:00.000Z
 ---
 
 ## Requirement
