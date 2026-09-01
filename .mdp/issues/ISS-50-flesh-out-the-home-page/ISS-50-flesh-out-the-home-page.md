@@ -2,7 +2,7 @@
 id: ISS-50
 title: Flesh out the home page
 type: task
-status: To Do
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -17,20 +17,80 @@ relatedTo:
   - ISS-31
 checklist:
   - text: Ask Ben the questions under Interrogate Ben before drafting anything
-    done: false
+    done: true
   - text: Settle whether the home page sells, routes, or does both
-    done: false
+    done: true
   - text: Load the writing-as-ben skill before writing prose
-    done: false
+    done: true
   - text: Draft the prose; keep the existing card navigation intact
-    done: false
+    done: true
   - text: Attribute every fact Ben supplies in a dated source comment
-    done: false
+    done: true
   - text: Build, run htmltest, and grep the whole build output for comment leakage
-    done: false
-log: []
+    done: true
+log:
+  - date: 2026-08-31
+    note: >-
+      Asked Ben the eight Interrogate Ben questions before drafting. His answers:
+      the page should sell and route, not just route; autumn (September through
+      December) is the season to lean on; Airbnb only, so the call to action is
+      unchanged; it suits couples, families with small children, and groups of six
+      adults; pets are not allowed but are not to be mentioned on the site in
+      either direction; the recurring review phrases are secluded, quiet, fully
+      equipped, close to Haliburton, beautiful surroundings, screened-in porch;
+      the difference is the 23 acres and the seclusion combined with the lake
+      access; owned since 2023, bought as a quiet place not too far from Toronto,
+      surprised by what the village had, used by them when they can, and some of
+      the previous owners' guests still come back; no smoking, quiet hours 10pm to
+      7am.
+  - date: 2026-08-31
+    note: >-
+      Rewrote content/_index.md. Prose went from 73 words to about 470, and the
+      rendered page from roughly 150 words to 677. The three card groups, the
+      hero, heroAlt and the {{< book >}} placement are untouched. The description
+      gained "rental" and the Drag Lake boat launch for the head query. Ben's
+      facts are attributed in six dated source comments; nothing was taken from
+      the Airbnb listing or from memory. No minimum stay, no pets, no invented
+      distance or superlative. Two draft targets were deliberately not linked:
+      haliburton-christmas-market and haliburton-galleries.
+  - date: 2026-08-31
+    note: >-
+      hugo --gc --minify builds clean; htmltest passes on 163 documents. Checked
+      for comment leakage by extracting every five-word window from the six source
+      comments (638 of them) and scanning all 527 files in the build output, feeds
+      and sitemap included: zero hits.
+  - date: 2026-08-31
+    note: >-
+      Flagged to Ben and accepted - the hero photograph is Drag Lake at peak
+      colour, which is a fortnight of the September-to-December stretch the page
+      now sells. The seasonal prose covers the whole run instead of pinning to the
+      turn. A November or December photograph is still wanted.
+  - date: 2026-08-31
+    note: >-
+      Three wording fixes from Ben on review. "Baseboard heat everywhere else"
+      implied the living room had none, and is now "baseboard heat throughout";
+      the phrasing was local to this page, since welcome.md already said
+      "throughout" and guest-access.md "in each room". "The 23 acres are the thing
+      to know" became his own line, "The setting on 23 wooded acres is what makes
+      this place special", and a comment records that the wording is his so the
+      writing-as-ben rule on virtue adjectives does not get it cut later. The
+      supplies sentence gained "because everything you need is nearby". Rebuilt,
+      htmltest passes, leak scan clean at 689 needles over 527 files.
+  - date: 2026-08-31
+    note: >-
+      Smoking and quiet hours are now answered and published, so that part of
+      ISS-39 is done. Pets remain deliberately unstated, which is Ben's decision
+      rather than an open question.
+  - date: 2026-08-31
+    note: >-
+      Dropped "of forest" from the opening sentence on Ben's call, since it
+      repeated both the acreage and the woods within four sentences. Committed to
+      main as bd52879 and pushed; the Cloudflare deploy workflow picked it up.
+      Remaining follow-ups belong to other issues: a November or December
+      photograph for the hero, and linking the Christmas market from the autumn
+      section once it comes out of draft.
 createdAt: 2026-08-31T17:07:01.351Z
-updatedAt: 2026-08-31T17:07:01.351Z
+updatedAt: 2026-08-31T17:45:00.000Z
 ---
 
 ## Requirement
