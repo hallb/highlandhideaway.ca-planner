@@ -29,7 +29,7 @@ checklist:
   - text: Confirm Highlands Cinemas still runs five screens
     done: false
   - text: Swap the placeholder featuredImage
-    done: false
+    done: true
   - text: Re-date the front matter at publish
     done: false
   - text: Confirm the Thursdays with TOM ticket price, not published on their page
@@ -115,3 +115,22 @@ detailed as the 10th) and the June entry (headed 10 June, detailed as
 "Thursday, January 10"). The post names only the three consistent 2026
 dates. No Event schema for the series -- too many unannounced films and
 two bad dates for structured data nobody re-reads.
+
+## Hero image, 2026-08-31
+
+`static/images/cinema-seats.jpg`, by Tima Miroshnichenko on Pexels,
+resized to 1600px and stripped of EXIF. Replaces the living-room.jpg
+placeholder that was shared with the cozy-night-in post.
+
+No visible credit on the page. Ben confirmed, and it matches the call he
+made for the fly-in post's aircraft-autumn.jpg on 2026-08-24: the Pexels
+licence does not require attribution, and the hero partial has no
+caption slot. Adding one would need a change to `partials/hero.html` and
+`_hh.scss` in the site repo, and the fly-in post would want the same
+treatment so the two do not diverge. Not done.
+
+Still worth doing, not tracked as a checklist item because it depends on
+somebody being in the right place with a camera: an original photograph
+of the Kinmount marquee or the pavilion would replace the stock hero and
+would also fix the HIFF Event schema image, which currently points at a
+cinema that is not the venue.
