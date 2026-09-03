@@ -2,7 +2,7 @@
 id: ISS-51
 title: Flesh out the sleeping arrangements page
 type: task
-status: To Do
+status: In Progress
 priority: High
 labels: []
 assignee: null
@@ -17,22 +17,50 @@ relatedTo:
   - ISS-45
 checklist:
   - text: Resolve the cot and trundle contradiction between the home page card and this post
-    done: false
+    done: true
   - text: Get the maximum occupancy from the Airbnb listing and make the site agree with it
-    done: false
+    done: true
   - text: Get the seated capacity of the dining table -- also answers Q11 on ISS-45
-    done: false
+    done: true
   - text: Get an honest hot water answer to replace normal residential size
     done: false
   - text: Room by room -- who each suits, noise between them, blinds, locks, cooling
     done: false
   - text: Settle the linens policy across this page, the home page card and what-to-bring
-    done: false
+    done: true
   - text: Build, run htmltest, and grep the whole build output for comment leakage
-    done: false
-log: []
+    done: true
+log:
+  - timestamp: 2026-09-03T02:03:23.271Z
+    author: claude
+    body: |-
+      Written and live. Ben answered the interrogation list on 2026-09-02 and the post was rewritten the same day: 129 words to 366. Site repo working tree, not yet committed.
+
+      His answers, and what each one did to the page.
+
+      The cot and trundle contradiction is resolved, and both were real. There is a folding bed in the side bedroom's closet and a trundle under the bed in the main bedroom, both singles. Ben asked for "folding bed" rather than "cot", because a cot reads as a small child's bed. The home page card now says "Three queens, plus a folding bed and a trundle" and the post describes both where they live.
+
+      Maximum occupancy on the Airbnb listing is six, and the two singles do not raise it. That was the trap in this issue: three queens plus two singles reads as eight to anybody counting beds. The page says six, then says what the singles are for, so the arithmetic cannot be done wrong.
+
+      Seated capacity is six at the dining table and six in The Sanctuary, more if people are willing to be crowded. This was already on /posts/cooking-at-the-cottage/ and had been since 2026-08-18, so the claim in this issue that no seated capacity appeared anywhere on the site was wrong. Not repeated on this page. It also answers Q11 on ISS-45.
+
+      Rooms are all close in size, the main only a little larger, and the curtains darken them properly. That turns into a section saying which room to take matters less than you would think, which is more useful to a group booking than three furniture descriptions were.
+
+      Cooling and heat are new and are the strongest practical content on the page. Ceiling fan in every bedroom, portable fans to move around, baseboards and thermostats keeping every room comfortable with or without the wood stove. The summer advice is his, near enough verbatim: open the windows overnight, close them as the outside temperature climbs unless there is a breeze, because open windows do not cool the place when it is hotter outside than in.
+
+      One bathroom, no second toilet, stated plainly with a line about agreeing an order the night before. No crib and no pack-n-play, so guests bring their own.
+
+      Linens are unchanged and re-confirmed: none supplied, pillows and duvets are here, guests bring sheets, pillow cases, duvet covers and towels. The page now also says to bring single bedding if the folding bed or the trundle is going to be used, which follows from the policy and had not been said anywhere.
+
+      Two items stay open, and neither is writing.
+
+      Hot water. Asked, and Ben does not know how many showers back to back the tank gives. The old line "the hot water tank is a normal residential size" was removed rather than kept: it reads as reassurance and tells a party of six nothing. The page now says nothing about hot water, which is the honest position until somebody measures it. Marked as a TODO comment in the file.
+
+      Noise between rooms, and whether the bedroom doors lock. Not answered, so the page says nothing either way. Both matter to a group of adults sharing a booking. Also a TODO comment in the file.
+
+      Verified: hugo --gc --minify builds clean, htmltest passes on 182 documents. Comment leakage checked by taking every five-word window unique to the source comments on the five edited files and scanning all 558 files in the build output, feeds and sitemap included. One phrase matched, "posts cooking at the cottage", which is the URL /posts/cooking-at-the-cottage/ appearing as a link across the site, not comment text. No comment markers anywhere except theme.min.js.
 createdAt: 2026-08-31T17:07:51.862Z
-updatedAt: 2026-08-31T17:07:51.862Z
+updatedAt: 2026-09-03T02:03:23.271Z
 ---
 
 ## Requirement

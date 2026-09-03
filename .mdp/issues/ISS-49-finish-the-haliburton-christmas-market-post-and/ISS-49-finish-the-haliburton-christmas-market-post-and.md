@@ -27,16 +27,24 @@ checklist:
   - text: Re-date the front matter at publish
     done: false
   - text: Check thoseothermovies.com from early September for HIFF 2026 dates
-    done: false
+    done: true
   - text: Decide whether to build the November and December roundup pages in late October
     done: false
   - text: Decide whether the early-December post is worth doing against the booking calendar
     done: false
   - text: Open the municipal and institutional calendars the tourism site links to
     done: false
-log: []
+log:
+  - timestamp: 2026-09-02T02:40:41.788Z
+    author: claude
+    body: |-
+      Corrected 2026-09-01. The HIFF checklist item was still open and had been answered a day early. thoseothermovies.com published the 2026 dates before the check window opened: Friday 6 to Sunday 8 November 2026, seven films, one venue -- the Northern Lights Performing Arts Pavilion in Haliburton. Ticked.
+
+      That answer also killed the HIFF post this issue was scoping. The brief built it on the 2025 festival's own admission that the drive home from the Kinmount opening venue is long; 2026 has no venue split, so the angle is gone. The material was folded into a broader movies post instead, which is now written, published and live at /posts/movies-near-haliburton/, tracked as ISS-53. HIFF keeps its own section there with dates, venue and pass prices, so the event query is still answered.
+
+      Nothing else on this issue has moved. The market post is still a 42-word outline in draft, the hours and one-event-or-two questions are still stubs, and the November and December roundups and the early-December post are still undecided. The publish-before-mid-October deadline stands, and this issue's due date of 2026-10-15 is now six weeks out.
 createdAt: 2026-08-22T13:27:10.225Z
-updatedAt: 2026-08-22T13:27:10.225Z
+updatedAt: 2026-09-02T02:40:41.788Z
 ---
 
 ## Requirement

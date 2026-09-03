@@ -39,8 +39,20 @@ log:
       The minimum stay came out of this post on 2026-08-31, along with the one on the Corduroy page. Ben expects to keep tweaking the Airbnb minimum and does not want a number on the website that goes stale when he does.
 
       The twelve are also published as a browsable page with answer boxes, so they can be answered in place rather than against the file.
+  - timestamp: 2026-09-03T02:05:22.592Z
+    author: claude
+    body: |-
+      Part of Q11 is answered, from the ISS-51 interrogation on 2026-09-02. Six at the dining table and six in The Sanctuary, more if people are willing to crowd in. So a party of six eats together, which is the answer this post needed.
+
+      It was already on the site. /posts/cooking-at-the-cottage/ has stated the dining table seats six since 2026-08-18, and Q11's note that there is no equivalent to the sleeping page for the table was wrong when it was written. The comment in the draft has been corrected in place rather than left to send somebody back to Ben for an answer the site already had.
+
+      The equipment half of Q11 -- roasting pan, thermometer, carving knife, enough plates and cutlery -- is still open, and it is the half that matters for a turkey.
+
+      Q4 moved a little and is not closed. Ben's answer on ISS-41 was about the lake ice generally: the lake is not part of the property, he does not object to guests going out on it, and he will not vouch for it. Q4 asks specifically what the lake is doing at the end of November, and that is still unanswered.
+
+      Ten of the twelve are untouched, Q1 included, and Q1 still decides whether the other eleven are worth answering.
 createdAt: 2026-08-21T12:52:08.615Z
-updatedAt: 2026-08-31T13:00:00.000Z
+updatedAt: 2026-09-03T02:05:22.592Z
 ---
 
 ## Requirement

@@ -57,8 +57,16 @@ log:
       Still open: the Friday GP question, and the spectator maps and full schedule, which were still unpublished on the event site on 2026-08-31. The event runs 17-20 September, so the window for adding the maps is short.
 
       Site repo commits 409c312, db3e9ba and 8193ba3. Ben requested indexing in Search Console rather than waiting for a natural crawl, since a page crawled naturally in three weeks is worthless for 2026.
+  - timestamp: 2026-09-03T02:13:42.336Z
+    author: claude
+    body: |-
+      The post gained a Hike Haliburton paragraph on 2026-09-02, site repo commit 6c89b27, tracked on ISS-54.
+
+      Hike Haliburton 2026 runs 17 to 20 September, the Cord weekend exactly. Ben found the festival page and asked for it to go in. It sits in "Making a weekend of it" rather than anywhere near the racing, so nothing about the spectator content or the audience decision changes.
+
+      This does not touch the two items still open here. The Friday GP question and the spectator maps were both still unresolved on 2026-08-31, and the event is now fifteen days out, so the window for the maps is nearly gone.
 createdAt: 2026-08-22T13:25:53.466Z
-updatedAt: 2026-08-31T13:00:00.000Z
+updatedAt: 2026-09-03T02:13:42.336Z
 ---
 
 ## Requirement

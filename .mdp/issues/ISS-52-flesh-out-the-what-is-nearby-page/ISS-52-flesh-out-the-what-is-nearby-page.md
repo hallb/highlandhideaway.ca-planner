@@ -19,22 +19,48 @@ checklist:
   - text: Check Search Console query data first; record in the log which queries steered the work
     done: false
   - text: Measure the drive times to Minden, Algonquin west gate, Dorset, Carnarvon, Eagle Lake, Sir Sam's
-    done: false
+    done: true
   - text: Replace a handful of restaurants with three named recommendations
     done: false
   - text: Get seasonal closures -- also answers Q2 on ISS-45
     done: false
   - text: Verify or drop the 6 km Head Lake Loop figure and the Barnum Creek details
-    done: false
+    done: true
   - text: Decide whether hidden-gems-nearby merges into this page or stays separate
     done: false
   - text: Link to Skyline Park in the fall colours post rather than rewriting it
     done: false
   - text: Build, run htmltest, and grep the whole build output for comment leakage
     done: false
-log: []
+log:
+  - timestamp: 2026-09-03T02:04:55.666Z
+    author: claude
+    body: |-
+      Ben answered the Interrogate Ben list on 2026-09-02, ahead of the query data. Nothing has been written to the page yet -- this entry is the raw material, recorded so it cannot be lost or half-remembered when the page is drafted. The Search Console item stays open and still decides which sections get the depth.
+
+      Drive times, all Ben's, replacing "a little further" and "within a reasonable day trip". Minden 30 minutes. Algonquin west gate 1 hour 20. Dorset 55. Carnarvon 30. Eagle Lake and Sir Sam's 22. Bancroft 60. Bobcaygeon 60.
+
+      Three destinations he added that were not on the list and are better than most of what was: Haliburton Forest at 35 minutes, with the wolf sanctuary and the trails; Wintergreen Maple Products at 25, for maple syrup and Texas barbecue; and the Little Tart at 17, seasonal, go early, bring cash.
+
+      Dorset is measured and is not to be mentioned. His call, unprompted, and the reason is in the number: 55 minutes each way. If a guest is going anyway, Pizza on Earth is his recommendation there.
+
+      Restaurants. He named seven in and around Haliburton rather than the three that were asked for, so the page can be selective: Kosy Korner for diner breakfast, McKeck's Tap and Grill for pub food, Juna for Italian, Tian He for Chinese takeaway, SIRCH bistro and bakery for fresh bread, the Haliburton Post House for fine dining, Kate's Burger Counter for burgers. Further out, the Mason Jar in Carnarvon for burgers and Pizza on Earth near Dorset. He flagged that the Mason Jar's opening times need checking, which is a reason to name the place and not print hours.
+
+      Haliburton Highlands Brewing: most of their beer is in the LCBO, some is not. That is a reason to go to the brewery and it is his, so it can be said.
+
+      Seasonal closures: he passed. So the page states none, and Q2 on ISS-45 stays open. Do not re-ask; this was a pass, not a miss.
+
+      Winter: yes to all of it -- Sir Sam's, snowmobile trails, ice fishing -- but he is not familiar with the detail on snowmobiling or ice fishing. So they get named as things that happen here and no practical guidance, which is the same shape as the lake ice answer on ISS-41.
+
+      The 6 km Head Lake Loop is his and he is confident in it. Keep. Barnum Creek: rather than re-verifying the donation, hours and season, link the Haliburton Land Trust's own page at https://www.haliburtonlandtrust.ca/our-properties/barnum-creek-nature-reserve/ and let them carry the detail that rots. Checklist item closed on that basis.
+
+      Practical geography. Haliburton Hospital, 7199 Gelert Rd, 13 minutes, on the far side of Haliburton. Pharmacies: Rexall at 224 Highland St, Shoppers Drug Mart at 186 Highland St, and a counter inside Todd's. He did not answer walk-in clinic or vet, so neither is stated.
+
+      Fuel, and this reverses a previous position. Esso at 10 Hops Dr and Mobil at 5121 Haliburton County Rd 21, near each other on the west side of Haliburton, both recommended. On 2026-08-31 he declined to name fuel or parts suppliers on the Corduroy page; asked whether that was general or specific, he gave these two. So the refusal was specific to that post. Corduroy already points here rather than repeating local geography, so putting fuel on this page serves that audience without reopening the Corduroy post.
+
+      Farmers market, https://www.hcfma.ca/. Tuesdays 10am to 2pm at Head Lake Park in Haliburton, 12 May to 6 October 2026. Saturdays 10am to 2pm on Milne Street at Prince, behind the post office in Minden, 9 May to 10 October 2026. These dates are 2026-specific and will be wrong next spring, so either write them as a linked season rather than a fixed range, or add it to whatever gets re-cut each year alongside the Corduroy dates.
 createdAt: 2026-08-31T17:07:51.985Z
-updatedAt: 2026-08-31T17:07:51.985Z
+updatedAt: 2026-09-03T02:04:55.666Z
 ---
 
 ## Requirement

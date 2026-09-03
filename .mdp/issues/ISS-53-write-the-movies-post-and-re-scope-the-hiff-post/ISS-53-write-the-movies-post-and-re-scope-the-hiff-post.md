@@ -2,7 +2,7 @@
 id: ISS-53
 title: Write the movies post, and re-scope the HIFF post around it
 type: task
-status: To Do
+status: In Progress
 priority: Medium
 labels: []
 assignee: null
@@ -15,7 +15,7 @@ parent: null
 relatedTo: []
 checklist:
   - text: "Decide the hook: broad movies page vs HIFF-only page"
-    done: false
+    done: true
   - text: Measure the drive to Northern Lights Performing Arts Pavilion
     done: true
   - text: Measure the drive to Highlands Cinemas in Kinmount
@@ -31,14 +31,24 @@ checklist:
   - text: Swap the placeholder featuredImage
     done: true
   - text: Re-date the front matter at publish
-    done: false
+    done: true
   - text: Confirm the Thursdays with TOM ticket price, not published on their page
     done: false
   - text: Re-check the January and June 2027 TOM dates, contradictory at source
     done: false
-log: []
+log:
+  - timestamp: 2026-09-02T02:40:30.889Z
+    author: claude
+    body: |-
+      Status corrected 2026-09-01. This was still To Do while the post had already been written, published and deployed: site repo commits fa3e076 (publish) and 39ee50f (hero), both on 2026-08-31, and /posts/movies-near-haliburton/ serves 200. Moved to In Progress rather than Done, because seven checklist items are still open.
+
+      Two checklist items closed with the status. The hook was decided and is what shipped -- one broad movies page carrying Thursdays with TOM, Highlands Cinemas and HIFF, not a HIFF-only page. The front matter was re-dated at publish: date is 2026-08-31, the day it went out, not the day the issue was written.
+
+      The post is 1115 words, draft:false, with one Event entry for HIFF 6-8 November 2026 and no Event schema for the TOM series.
+
+      What is still open is verification, not writing: the Highlands Cinemas closing date by phone, the 2026 HIFF lineup and pass sales, the Friday-versus-Saturday single ticket opening, whether the cinema still runs five screens, the Thursdays with TOM ticket price, and the contradictory January and June 2027 TOM dates. The lineup check is the one with a deadline -- it wants to be on the page before the November searches start.
 createdAt: 2026-09-01T00:41:25.613Z
-updatedAt: 2026-09-01T00:41:25.613Z
+updatedAt: 2026-09-02T02:40:30.889Z
 ---
 
 ## Requirement
