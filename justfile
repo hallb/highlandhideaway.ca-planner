@@ -72,6 +72,11 @@ server:
 console:
     @echo "No project REPL. Use: mdp --help"
 
+# Revenue diagnostic (RevPAN, occupancy, ADR by month) into docs/, which gitignores it.
+# Needs REVPAN_EARNINGS_DIR and REVPAN_OFF_PLATFORM; see script/revpan-diagnostic --help.
+revpan *args:
+    uv run --quiet script/revpan-diagnostic {{args}}
+
 # Start local Grafana over the Analytics Engine SQL API (see grafana/README.md).
 grafana:
     #!/usr/bin/env bash

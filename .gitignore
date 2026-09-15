@@ -3,3 +3,6 @@
 
 # Local Grafana credentials (Cloudflare account ID + analytics token)
 grafana/.env
+
+# Revenue diagnostic output (script/revpan-diagnostic) — revenue data, never commit
+docs/revpan-diagnostic-*

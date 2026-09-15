@@ -1,0 +1,1570 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["openpyxl>=3.1"]
+# ///
+"""Revenue diagnostic: is the cottage rate-constrained or occupancy-constrained, and when?
+
+Reads, never writes, the MAT earnings folder (Airbnb earnings CSVs plus
+earnings.xlsx) and the off-platform pricing workbook, then writes
+revpan-diagnostic-<YYYYMMDD>.md to the output folder. It refuses to write into
+a git work tree unless the report path is gitignored, because the report is
+revenue data.
+
+    script/revpan-diagnostic --earnings-dir DIR [--off-platform XLSX] [--out-dir docs]
+
+Paths default to REVPAN_EARNINGS_DIR, REVPAN_OFF_PLATFORM and REVPAN_OUT_DIR so
+no local path is committed. Guest names, emails, bank details and free text are
+read past and never written.
+
+Every number in the report carries a provenance tag, and a cell takes the
+weakest tag of anything that went into it:
+  [verified]    computed directly from source rows
+  [inferred]    derived using a rule stated in the issue register
+  [assumption]  a choice had to be made; the register states it and its impact
+  [missing]     needed but absent
+  [conflict]    sources disagree; the register shows both values
+
+Sections 5 (top findings) are written by a person per run; everything else is
+generated.
+"""
+
+import argparse
+import calendar
+import csv
+import math
+import os
+import re
+import statistics
+import subprocess
+import sys
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+import openpyxl
+
+TAG_RANK = {"verified": 0, "inferred": 1, "assumption": 2, "missing": 3, "conflict": 4}
+AIRBNB, OFF = "Airbnb", "Off-platform"
+WEEKEND = {4, 5}  # the nights of Friday and Saturday
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+MONTH_DAY_TEXT = re.compile(
+    r"^(%s)\s+\d{1,2}(st|nd|rd|th)?$" % "|".join(calendar.month_name[1:]), re.IGNORECASE
+)
+MONTH_NAMES = {n.lower() for n in calendar.month_name[1:]}
+# Labels reported from the freeform off-platform workbook. Every other string in
+# it is correspondence (names, emails, messages) and stays out of the report.
+OFF_PLATFORM_LABELS = [
+    "Scenario", "Nights", "Total Cost", "Nightly Cost", "Total Payout", "Nightly Payout",
+    "YOY %", "Discount", "Specific Dates", "Trip", "From", "To", "Finalized", "Last year",
+    "Deposit", "Total",
+]
+# How to read a ledger `Total` that has no per-night rate and no raw export row.
+LEDGER_BASES = {
+    "payout": "accommodation = Total ÷ (1 − host fee) − cleaning (Total is an Airbnb payout)",
+    "net-of-fee": "accommodation = Total ÷ (1 − host fee) (Total is accommodation net of host fee)",
+    "accommodation": "accommodation = Total (Total is gross accommodation)",
+}
+LOW_BASE = 10  # available nights below which a month's occupancy is flagged as a low base
+
+
+# ---------------------------------------------------------------- small helpers
+
+
+def weakest(tags):
+    tags = [t for t in tags if t]
+    return max(tags, key=TAG_RANK.__getitem__) if tags else "verified"
+
+
+def as_date(v):
+    if isinstance(v, datetime):
+        return v.date()
+    return v if isinstance(v, date) else None
+
+
+def as_num(v):
+    if v is None or v == "":
+        return None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    try:
+        return float(str(v).replace(",", "").replace("$", ""))
+    except ValueError:
+        return None
+
+
+def mdy(v):
+    return datetime.strptime(v.strip(), "%m/%d/%Y").date() if v and v.strip() else None
+
+
+def ym_of(d):
+    return (d.year, d.month)
+
+
+def ym_label(ym):
+    return f"{ym[0]}-{ym[1]:02d}"
+
+
+def month_span(first, last):
+    y, m = first
+    out = []
+    while (y, m) <= last:
+        out.append((y, m))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
+
+
+def month_ranges(yms):
+    """Compress months into 'a…b' runs for prose."""
+    yms = sorted(set(yms))
+    runs, start, prev = [], None, None
+    for ym in yms:
+        if start is None:
+            start = prev = ym
+        elif month_span(prev, ym)[1:2] == [ym]:
+            prev = ym
+        else:
+            runs.append((start, prev))
+            start = prev = ym
+    if start is not None:
+        runs.append((start, prev))
+    return ", ".join(ym_label(a) if a == b else f"{ym_label(a)}…{ym_label(b)}" for a, b in runs)
+
+
+def nights_between(start, end):
+    return [start + timedelta(days=i) for i in range((end - start).days)]
+
+
+def close(a, b):
+    if a is None or b is None:
+        return a is None and b is None
+    return abs(a - b) < 1e-9
+
+
+def whole(v):
+    return abs(v - round(v)) < 0.005
+
+
+def date_range(dates):
+    dates = [d for d in dates if d]
+    return f"{min(dates)} → {max(dates)}" if dates else "none"
+
+
+# ---------------------------------------------------------------- formatting
+
+
+def f_int(v, tag):
+    return f"— [{tag}]" if v is None else f"{v:,} [{tag}]"
+
+
+def f_num(v, tag, nd=1):
+    return "n/a" if v is None else f"{v:,.{nd}f} [{tag}]"
+
+
+def f_money(v, tag):
+    return "n/a" if v is None else f"${v:,.2f} [{tag}]"
+
+
+def f_pct(v, tag):
+    return "n/a" if v is None else f"{v * 100:.1f}% [{tag}]"
+
+
+def bare_pct(v):
+    return "n/a" if v is None else f"{v * 100:.1f}%"
+
+
+def bare_money(v):
+    return "n/a" if v is None else f"${v:,.2f}"
+
+
+def refs(ns):
+    return " ".join(f"#{n}" for n in sorted(set(ns)))
+
+
+def table(headers, rows):
+    esc = lambda c: str(c).replace("|", "\\|").replace("\n", " ")
+    lines = ["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"]
+    lines += ["| " + " | ".join(esc(c) for c in r) + " |" for r in rows]
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------- model
+
+
+class Register:
+    """Numbered conflicts, assumptions, inferences and gaps; the report cites them as #n."""
+
+    def __init__(self):
+        self.items = []
+
+    def add(self, tag, topic, detail, months=None):
+        """months=None means the issue applies to the whole window; pass () to add months later."""
+        n = len(self.items) + 1
+        self.items.append(dict(n=n, tag=tag, topic=topic, detail=detail, months=set(months or ()),
+                               whole_window=months is None, impact=[]))
+        return n
+
+    def item(self, n):
+        return self.items[n - 1]
+
+    def for_month(self, ym):
+        return [i["n"] for i in self.items if ym in i["months"]]
+
+
+@dataclass
+class Stay:
+    key: str
+    channel: str
+    check_in: date
+    check_out: date
+    accom: float | None
+    accom_tag: str
+    cleaning: float | None
+    cleaning_tag: str
+    nights_tag: str = "verified"
+    booked_on: date | None = None
+    source: str = ""
+    alt_accom: dict = field(default_factory=dict)
+    refs: set = field(default_factory=set)
+
+    @property
+    def nights(self):
+        return (self.check_out - self.check_in).days
+
+    @property
+    def months(self):
+        return {ym_of(d) for d in nights_between(self.check_in, self.check_out)}
+
+
+@dataclass
+class Month:
+    ym: tuple
+    cal: int
+    avail_sheet: int | None
+    cal_weekend: int
+    raw: bool
+    booked: int = 0
+    weekend_booked: int = 0
+    by_channel: Counter = field(default_factory=Counter)
+    rev: float = 0.0
+    rev_nights: int = 0
+    no_rev_nights: int = 0
+    cleaning: float = 0.0
+    cleaning_missing: int = 0
+    checkins: list = field(default_factory=list)
+    night_tags: set = field(default_factory=set)
+    rev_tags: set = field(default_factory=set)
+    clean_tags: set = field(default_factory=set)
+    available: int | None = None
+    blocked: int | None = None
+
+    @property
+    def occ(self):
+        return self.booked / self.available if self.available else None
+
+    @property
+    def adr(self):
+        return self.rev / self.rev_nights if self.rev_nights else None
+
+    @property
+    def revpan(self):
+        return self.rev / self.cal
+
+    @property
+    def revpan_avail(self):
+        return self.rev / self.available if self.available else None
+
+    @property
+    def booked_tag(self):
+        return weakest(self.night_tags | ({"verified"} if self.raw else {"inferred"}))
+
+    @property
+    def avail_tag(self):
+        if self.available is None:
+            return "missing"
+        if self.available > self.cal or self.by_channel[AIRBNB] > (self.avail_sheet or 0):
+            return "conflict"
+        return "inferred"
+
+    @property
+    def occ_tag(self):
+        return weakest([self.booked_tag, self.avail_tag])
+
+    @property
+    def rev_tag(self):
+        tags = set(self.rev_tags) or {self.booked_tag}
+        return weakest(tags | ({"missing"} if self.no_rev_nights else set()))
+
+    @property
+    def adr_tag(self):
+        return weakest(self.rev_tags | ({"inferred"} if self.no_rev_nights else set()))
+
+    @property
+    def los_tag(self):
+        return weakest({s.nights_tag for s in self.checkins} | ({"verified"} if self.raw else {"inferred"}))
+
+
+def classify(occ, hi, lo):
+    if occ is None:
+        return "n/a"
+    if occ > hi:
+        return "rate-constrained"
+    return "occupancy-constrained" if occ < lo else "mixed"
+
+
+# ---------------------------------------------------------------- readers
+
+
+def sheet_rows(ws):
+    rows = [list(r) for r in ws.iter_rows(min_row=1, min_col=1, values_only=True)]
+    # Pad to at least column X so fixed-layout lookups (notes in I, trip table in L–W) never index past a narrow sheet.
+    width = max([len(r) for r in rows] + [24])
+    return [r + [None] * (width - len(r)) for r in rows]
+
+
+def find_header(rows, required):
+    for i, r in enumerate(rows):
+        labels = {}
+        for j, v in enumerate(r):
+            if isinstance(v, str):
+                labels.setdefault(v.strip(), j)
+        if all(h in labels for h in required):
+            return i, labels
+    return None, None
+
+
+def read_airbnb_csvs(folder, inventory):
+    rows, coverage = [], set()
+    for path in sorted(folder.glob("*.csv")):
+        bom = path.read_bytes()[:3] == b"\xef\xbb\xbf"
+        with path.open(newline="", encoding="utf-8-sig") as fh:
+            reader = csv.DictReader(fh)
+            file_rows = [dict(r, _file=path.name) for r in reader]
+            columns = reader.fieldnames or []
+        window = re.search(r"_(\d{2})_(\d{4})-(\d{2})_(\d{4})\.csv$", path.name)
+        window_text = "no window in filename"
+        if window:
+            m1, y1, m2, y2 = map(int, window.groups())
+            coverage |= set(month_span((y1, m1), (y2, m2)))
+            window_text = f"filename window {m1:02d}/{y1}–{m2:02d}/{y2}"
+        types = Counter(r.get("Type", "") for r in file_rows)
+        dates = [mdy(r.get(c)) for r in file_rows for c in ("Date", "Start date", "End date")]
+        inventory.append(dict(
+            file=path.name,
+            fmt="CSV, UTF-8" + (" with BOM" if bom else ""),
+            rows=len(file_rows),
+            range=date_range(dates),
+            columns=columns,
+            represents=(
+                f"Airbnb earnings (transactions) export, payout-dated, {window_text}. Row types: "
+                + ", ".join(f"{t} ×{n}" for t, n in types.items())
+                + ". Guest and bank-detail columns are not used."
+            ),
+        ))
+        rows += file_rows
+    return rows, coverage
+
+
+def read_earnings_workbook(path, inventory):
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ledger, available, pivot = [], {}, None
+    for ws in wb.worksheets:
+        rows = sheet_rows(ws)
+        name = f"{path.name} › {ws.title}"
+        nonempty = sum(any(v is not None for v in r) for r in rows)
+
+        hdr, cols = find_header(rows, ["Reservation Code", "Arrive", "Depart", "Total"])
+        if hdr is not None:
+            start = len(ledger)
+            for i, r in enumerate(rows[hdr + 1:], hdr + 2):
+                code = r[cols["Reservation Code"]]
+                if not code:
+                    continue
+                get = lambda h: r[cols[h]] if h in cols else None
+                ledger.append(dict(
+                    code=str(code).strip(), row=i,
+                    arrive=as_date(get("Arrive")), depart=as_date(get("Depart")),
+                    nights_cell=as_num(get("Nights")), per_night=as_num(get("Per Night")),
+                    total=as_num(get("Total")),
+                ))
+            mine = ledger[start:]
+            inventory.append(dict(
+                file=name, fmt="xlsx sheet", rows=len(mine),
+                range=date_range([x["arrive"] for x in mine] + [x["depart"] for x in mine]),
+                columns=list(cols),
+                represents=(
+                    "Hand-kept reservation ledger used for MAT: one row per stay line; `Total` is the MAT base, "
+                    "`MAT $` = Total × MAT. No booking date, cleaning or channel columns. `Per Night` filled on some rows only."
+                ),
+            ))
+            continue
+
+        hdr, cols = find_header(rows, ["Month", "Available Days"])
+        if hdr is not None:
+            months = []
+            for r in rows[hdr + 1:]:
+                m = as_date(r[cols["Month"]])
+                if m is None:
+                    continue
+                v = as_num(r[cols["Available Days"]])
+                available[ym_of(m)] = None if v is None else int(v)
+                months.append(m)
+            _, pcols = find_header(rows, ["Row Labels"])
+            inventory.append(dict(
+                file=name, fmt="xlsx sheet", rows=len(months), range=date_range(months),
+                columns=list(cols) + ([f"pivot: {', '.join(pcols)}"] if pcols else []),
+                represents=(
+                    "Monthly count of nights open for rent, kept for MAT reporting, plus a quarterly pivot of it. "
+                    "Counts only — no dates, so blocks cannot be placed on days."
+                ),
+            ))
+            continue
+
+        hdr, cols = find_header(rows, ["Row Labels", "Sum of Nights"])
+        if hdr is not None:
+            periods, year = [], None
+            for r in rows[hdr + 1:]:
+                label = r[cols["Row Labels"]]
+                if isinstance(label, (int, float)) or (isinstance(label, str) and re.fullmatch(r"\d{4}", label)):
+                    year = str(int(float(label)))
+                elif isinstance(label, str) and label.startswith("Qtr") and year:
+                    periods.append(f"{year} {label}")
+                elif label == "Grand Total":
+                    pivot = dict(nights=as_num(r[cols["Sum of Nights"]]),
+                                 total=as_num(r[cols["Sum of Total"]]) if "Sum of Total" in cols else None,
+                                 sheet=name)
+            inventory.append(dict(
+                file=name, fmt="xlsx pivot table", rows=nonempty - 1,
+                range=f"{periods[0]} → {periods[-1]}" if periods else "none",
+                columns=list(cols),
+                represents=(
+                    "Pivot of the Stays ledger by quarter (MAT $, Total, Nights) — a summary figure, "
+                    "not used for any metric; checked against the recomputed ledger only."
+                ),
+            ))
+            continue
+
+        inventory.append(dict(file=name, fmt="xlsx sheet", rows=nonempty, range="n/a", columns=[],
+                              represents="[unrecognized] — not used"))
+    return ledger, available, pivot
+
+
+def read_off_platform(path, inventory):
+    """Trips with dates and a finalized price; priced sections without dates come back unallocated."""
+    wb = openpyxl.load_workbook(path, data_only=True)
+    trips, unallocated, last_year, cleaning_evidence = [], [], defaultdict(list), []
+    for ws in wb.worksheets:
+        rows = sheet_rows(ws)
+        if not rows:
+            continue
+        strings = [v.strip() for r in rows for v in r if isinstance(v, str)]
+        labels = [l for l in OFF_PLATFORM_LABELS if l in strings]
+        free = sum(s not in OFF_PLATFORM_LABELS for s in strings)
+        inventory.append(dict(
+            file=f"{path.name} › {ws.title}", fmt="xlsx sheet (freeform worksheet)",
+            rows=sum(any(v is not None for v in r) for r in rows),
+            range=date_range([as_date(v) for r in rows for v in r if isinstance(v, datetime)]),
+            columns=labels + [f"+{free} free-text cells (not reported)"],
+            represents=(
+                "Off-platform (direct) stay worksheet: pricing scenarios, a 'Specific Dates' trip table, "
+                "a 'Finalized' agreed price per section, and deposit notes."
+            ),
+        ))
+
+        for r in rows:
+            if r[0] == "Last year" and as_num(r[1]) and as_num(r[2]):
+                last_year[ws.title].append((int(as_num(r[1])), as_num(r[2])))
+
+        sheet_trips = []
+        for i, r in enumerate(rows):
+            if len(r) > 14 and isinstance(r[12], datetime) and isinstance(r[13], datetime):
+                nightly = [as_num(v) for v in r[16:23] if as_num(v) is not None]
+                if as_num(r[15]) is not None and nightly:
+                    cleaning_evidence.append(abs(as_num(r[15]) - sum(nightly)) < 0.005)
+                sheet_trips.append(dict(label=str(r[11] or "").strip(), start=r[12].date(), end=r[13].date(),
+                                        nights_cell=as_num(r[14]), row=i + 1))
+
+        starts = [(i, r[0].strip()) for i, r in enumerate(rows)
+                  if isinstance(r[0], str) and not any(v is not None for v in r[1:])
+                  and not MONTH_DAY_TEXT.match(r[0].strip())]
+        first_data = next(i for i, r in enumerate(rows) if any(v is not None for v in r))
+        if not starts or starts[0][0] > first_data:
+            starts.insert(0, (0, ws.title))
+        bounds = [s[0] for s in starts] + [len(rows)]
+        for k, (start, title) in enumerate(starts):
+            block = rows[start:bounds[k + 1]]
+            price, instalments, paid, price_row = None, 0, 0, None
+            for j, r in enumerate(block):
+                if r[0] == "Finalized" and price is None:
+                    price, price_row = as_num(r[5]), start + j + 1  # column F holds the agreed total
+                    for note_row in block[j:j + 2]:
+                        if isinstance(note_row[8], str) and note_row[8].strip():
+                            instalments += 1
+                            paid += bool(re.search(r"\bpaid\b", note_row[8], re.I))
+            if price is None:
+                for j, r in enumerate(block):
+                    for c in range(1, len(r)):
+                        if r[c] == "Total" and as_num(r[c - 1]) is not None:
+                            price, price_row = as_num(r[c - 1]), start + j + 1
+            hints = [r[0].strip() for r in block if isinstance(r[0], str) and MONTH_DAY_TEXT.match(r[0].strip())]
+            # Section titles can be guest names; only month names and sheet names are safe to print.
+            safe = title if title.lower() in MONTH_NAMES or title == ws.title else f"section {k + 1}"
+            label = safe if safe == ws.title else f"{ws.title} {safe}"
+            matched = [t for t in sheet_trips if t["label"].lower() == title.lower()]
+            for t in matched:
+                trips.append(dict(t, sheet=ws.title, label=label, price=price, price_row=price_row,
+                                  instalments=instalments, paid=paid))
+            if price is not None and not matched:
+                unallocated.append(dict(sheet=ws.title, label=label, price=price, row=price_row, hints=hints))
+        for t in sheet_trips:
+            if not any(x["row"] == t["row"] and x["sheet"] == ws.title for x in trips):
+                trips.append(dict(t, sheet=ws.title, label=f"{ws.title} trip row {t['row']}", price=None,
+                                  price_row=None, instalments=0, paid=0))
+
+    for u in unallocated:
+        u["nights"] = None
+        if re.fullmatch(r"\d{4}", u["sheet"]):
+            u["year"] = int(u["sheet"])
+            for nights, total in last_year.get(str(u["year"] + 1), []):
+                if abs(total - u["price"]) < 0.005:
+                    u["nights"], u["nights_source"] = nights, f"'{u['year'] + 1}' sheet 'Last year' rows"
+            if len(u["hints"]) == 2:
+                try:
+                    d = [datetime.strptime(re.sub(r"(st|nd|rd|th)$", "", h) + f" {u['year']}", "%B %d %Y").date()
+                         for h in u["hints"]]
+                    u["candidate"] = (min(d), max(d))
+                except ValueError:
+                    pass
+    return trips, unallocated, cleaning_evidence
+
+
+# ---------------------------------------------------------------- stays
+
+
+def build_airbnb_stays(csv_rows, ledger, reg, basis):
+    reservations = [r for r in csv_rows if r.get("Type") == "Reservation"]
+    tax_rows = [r for r in csv_rows if re.search(r"\b(tot|tax)\b", r.get("Type", ""), re.I)]
+    other = Counter(r.get("Type", "") for r in csv_rows
+                    if r.get("Type") not in ("Reservation", "Payout") and r not in tax_rows)
+    for t, n in other.items():
+        reg.add("missing", "Unmodelled transaction type",
+                f"{n} raw row(s) of type '{t}' are not modelled; adjustments, cancellations or resolutions "
+                "would change revenue. Review them by hand.")
+
+    fee_rates, cleanings = [], []
+    for r in reservations:
+        gross, fee, clean = (as_num(r.get(c)) for c in ("Gross earnings", "Service fee", "Cleaning fee"))
+        if gross and fee is not None:
+            fee_rates.append(fee / gross)
+        if clean is not None:
+            cleanings.append(clean)
+    fee_rate = round(statistics.median(fee_rates), 4) if fee_rates else None
+    typical_clean = statistics.median(cleanings) if cleanings else None
+    params_n = None
+    if fee_rate is not None or typical_clean is not None:
+        params_n = reg.add(
+            "inferred", "Fee and cleaning parameters",
+            f"From {len(reservations)} raw reservation rows: host service fee = "
+            f"{bare_pct(fee_rate)} of (accommodation + cleaning) (range {bare_pct(min(fee_rates))}–{bare_pct(max(fee_rates))}); "
+            f"cleaning fee = ${typical_clean:,.2f} (range ${min(cleanings):,.2f}–${max(cleanings):,.2f}). "
+            "Used only to decode ledger rows that have no raw row.",
+        )
+
+    raw_by_code, ledger_by_code = defaultdict(list), defaultdict(list)
+    for r in reservations:
+        raw_by_code[r["Confirmation Code"].strip()].append(r)
+    for x in ledger:
+        ledger_by_code[x["code"]].append(x)
+
+    def is_stay_line(x):
+        return bool(x["arrive"] and x["depart"] and (x["depart"] - x["arrive"]).days > 0 and x["nights_cell"] != 0)
+
+    def conventions(total):
+        out = {"accommodation": total}
+        if fee_rate is not None:
+            out["net-of-fee"] = total / (1 - fee_rate)
+            if typical_clean is not None:
+                out["payout"] = total / (1 - fee_rate) - typical_clean
+        return out
+
+    def from_ledger(x):
+        nights = (x["depart"] - x["arrive"]).days
+        if x["per_night"] is not None:
+            total = x["total"] if x["total"] is not None else x["per_night"] * nights
+            return total, "inferred", None, "missing", {}
+        if x["total"] is None:
+            return None, "missing", None, "missing", {}
+        alts = conventions(x["total"])
+        chosen = basis if basis in alts else "accommodation"
+        payout = chosen == "payout"
+        return alts[chosen], "assumption", typical_clean if payout else None, "assumption" if payout else "missing", alts
+
+    # Evidence for the two ledger rules, gathered before any stay is built.
+    per_night_checks = []
+    for x in ledger:
+        if x["per_night"] is not None and x["code"] in raw_by_code and is_stay_line(x) and x["total"] is not None:
+            r = raw_by_code[x["code"]][0]
+            per_night_checks.append(abs(x["total"] - (as_num(r["Gross earnings"]) - as_num(r["Cleaning fee"]))))
+    undecoded = [x for x in ledger if is_stay_line(x) and x["per_night"] is None
+                 and x["code"] not in raw_by_code and x["total"] is not None]
+    ledger_conventions = []
+    for x in ledger:
+        if is_stay_line(x) and x["per_night"] is None and x["code"] in raw_by_code and x["total"] is not None:
+            r = raw_by_code[x["code"]][0]
+            amount, clean = as_num(r.get("Amount")), as_num(r.get("Cleaning fee"))
+            gross = as_num(r.get("Gross earnings"))
+            if amount is not None and clean is not None and abs(x["total"] - (amount - clean)) < 0.005:
+                ledger_conventions.append(f"{x['code']} was entered as raw payout − cleaning")
+            elif gross is not None and clean is not None and abs(x["total"] - (gross - clean)) < 0.005:
+                ledger_conventions.append(f"{x['code']} was entered as gross − cleaning")
+
+    stays, dup_extra, dup_ns, no_rev_ns = [], [], [], []
+    per_night_n = basis_n = clean_missing_n = None
+    for code in dict.fromkeys([x["code"] for x in ledger] + list(raw_by_code)):
+        lines = ledger_by_code.get(code, [])
+        stay_lines = [x for x in lines if is_stay_line(x)]
+        other_lines = [x for x in lines if not is_stay_line(x)]
+        raw = raw_by_code.get(code, [])
+
+        if raw:
+            r = raw[0]
+            gross, clean = as_num(r["Gross earnings"]), as_num(r["Cleaning fee"])
+            s = Stay(code, AIRBNB, mdy(r["Start date"]), mdy(r["End date"]), gross - clean, "verified",
+                     clean, "verified", booked_on=mdy(r.get("Booking date")), source=r["_file"])
+            if len(raw) > 1:
+                s.refs.add(reg.add("conflict", "Repeated raw reservation row",
+                                   f"{code} has {len(raw)} Reservation rows in the raw exports; the first is used.", s.months))
+            if as_num(r.get("Nights")) not in (None, s.nights):
+                s.refs.add(reg.add("conflict", "Raw nights vs dates",
+                                   f"{code}: raw `Nights` {r['Nights']} vs {s.nights} from dates; dates used.", s.months))
+            if not stay_lines:
+                s.refs.add(reg.add("conflict", "Raw reservation missing from ledger",
+                                   f"{code} ({s.check_in} → {s.check_out}, {s.nights} nights) is in {r['_file']} "
+                                   "but has no Stays row. Counted from the raw row.", s.months))
+            else:
+                x = stay_lines[0]
+                if (x["arrive"], x["depart"]) != (s.check_in, s.check_out):
+                    s.refs.add(reg.add("conflict", "Ledger dates vs raw row",
+                                       f"{code}: ledger {x['arrive']} → {x['depart']} vs raw {s.check_in} → {s.check_out}; "
+                                       "raw dates used.", s.months | {ym_of(d) for d in nights_between(x["arrive"], x["depart"])}))
+                if x["total"] is not None and abs(x["total"] - s.accom) >= 0.005:
+                    how = next((c.split(" was ")[1] for c in ledger_conventions if c.startswith(code)), None)
+                    s.refs.add(reg.add(
+                        "conflict", "Ledger total vs raw row",
+                        f"{code}: ledger `Total` ${x['total']:,.2f}{f' ({how})' if how else ''} vs raw "
+                        f"`Gross earnings − Cleaning fee` ${s.accom:,.2f} (difference ${x['total'] - s.accom:+,.2f}). "
+                        "Metrics use the raw row, per the recompute-from-raw-rows rule.", s.months))
+            for x in other_lines:
+                tax = [t for t in tax_rows if t.get("Confirmation Code", "").strip() == code
+                       and x["total"] is not None and abs((as_num(t.get("Amount")) or 0) - x["total"]) < 0.005]
+                if tax:
+                    s.refs.add(reg.add(
+                        "conflict", "Tax line counted in ledger",
+                        f"{code}: Stays row {x['row']} (${x['total']:,.2f}, 0 nights) is typed '{tax[0]['Type']}' in the raw "
+                        "export — a tax pass-through, not accommodation. Excluded here; the ledger includes it in its Total "
+                        "(and so in the MAT base).", s.months))
+                else:
+                    s.refs.add(reg.add("conflict", "Zero-night ledger row",
+                                       f"{code}: Stays row {x['row']} has 0 nights and no matching raw tax row; excluded.",
+                                       s.months))
+        else:
+            if not stay_lines:
+                for x in other_lines:
+                    reg.add("missing", "Unusable ledger row",
+                            f"Stays row {x['row']} ({code}) has no usable dates or nights and no raw row; ignored.")
+                continue
+            x = stay_lines[0]
+            accom, tag, clean, clean_tag, alts = from_ledger(x)
+            s = Stay(code, AIRBNB, x["arrive"], x["depart"], accom, tag, clean, clean_tag,
+                     source=f"Stays row {x['row']}", alt_accom=alts)
+            if x["per_night"] is not None:
+                if per_night_n is None:
+                    check = (f"On the {len(per_night_checks)} ledger rows that also have a raw row, it matched raw "
+                             f"`Gross earnings − Cleaning fee` within ${max(per_night_checks):.2f}."
+                             if per_night_checks else "No ledger row with a per-night rate has a raw row to check against.")
+                    per_night_n = reg.add(
+                        "inferred", "Ledger rows with a per-night rate",
+                        f"Accommodation = ledger `Total` (= `Per Night` × nights) for ledger-only rows with a per-night rate. {check}", ())
+                reg.item(per_night_n)["months"] |= s.months
+                s.refs.add(per_night_n)
+            elif accom is not None:
+                if basis_n is None:
+                    k = len(undecoded)
+                    fee_whole = sum(whole(y["total"] / (1 - fee_rate)) for y in undecoded) if fee_rate is not None else 0
+                    pmc = (sum(whole((y["total"] + typical_clean) / (1 - fee_rate)) for y in undecoded)
+                           if fee_rate is not None and typical_clean is not None else 0)
+                    basis_n = reg.add(
+                        "assumption", "Basis of ledger totals with no per-night rate",
+                        f"{k} ledger rows ({', '.join(y['code'] for y in undecoded)}) have a `Total` but no per-night rate "
+                        f"and no raw row, so what `Total` measures is not stated. Evidence: {sum(whole(y['total']) for y in undecoded)}/{k} "
+                        f"are whole dollars as recorded; {fee_whole}/{k} become whole dollars after ÷ (1 − {bare_pct(fee_rate)}), "
+                        "i.e. they look net of the host fee; "
+                        f"{pmc}/{k} fit 'payout − cleaning'{f' (the convention where ' + '; '.join(ledger_conventions) + ')' if ledger_conventions else ''}. "
+                        "The raw export's `Amount` is exactly (accommodation + cleaning) × (1 − fee), so a copied payout produces "
+                        f"the net-of-fee pattern — but whether cleaning sits inside cannot be seen. Chosen reading `{basis}`: "
+                        f"{LEDGER_BASES[basis]}. §4.8 shows every reading; the spread is about ${typical_clean or 0:,.0f} plus fee per stay.",
+                        (),
+                    )
+                reg.item(basis_n)["months"] |= s.months
+                s.refs.add(basis_n)
+            else:
+                s.nights_tag = "assumption"
+                n = reg.add("missing", "Ledger stay with no revenue",
+                            f"{code} ({s.check_in} → {s.check_out}, {s.nights} nights): `Total` is blank (MAT $0). "
+                            "Nights counted as booked [assumption: not cancelled]; revenue missing, so ADR in its months uses "
+                            "only nights with known revenue and RevPAN is understated.", s.months)
+                no_rev_ns.append(n)
+                s.refs.add(n)
+            if s.cleaning is None:
+                if clean_missing_n is None:
+                    clean_missing_n = reg.add("missing", "Cleaning fee for ledger-only stays",
+                                              "The Stays ledger has no cleaning column; cleaning is reported only where a raw row "
+                                              "(or the chosen ledger reading) supplies it.", ())
+                reg.item(clean_missing_n)["months"].add(ym_of(s.check_in))
+
+        if len(stay_lines) > 1:
+            same = all((y["arrive"], y["depart"]) == (stay_lines[0]["arrive"], stay_lines[0]["depart"]) for y in stay_lines)
+            totals = "; ".join(f"row {y['row']} " + (f"${y['total']:,.2f}" if y["total"] is not None else "blank")
+                               for y in stay_lines)
+            n = reg.add(
+                "conflict", "Duplicate reservation code",
+                f"{code} is on {len(stay_lines)} Stays rows ({totals}), {'same' if same else 'different'} dates. A confirmation "
+                f"code is one reservation, so metrics count its {s.nights} nights once and use "
+                f"{'the raw row' if raw else 'the first row'} for revenue. Counting every row, as the ledger pivot does, "
+                f"adds {s.nights * (len(stay_lines) - 1)} nights.", s.months)
+            dup_ns.append(n)
+            s.refs.add(n)
+            s.nights_tag = weakest([s.nights_tag, "conflict"])
+            if not raw:
+                s.accom_tag = weakest([s.accom_tag, "conflict"])
+            for y in stay_lines[1:]:
+                accom = s.accom if raw else from_ledger(y)[0]
+                dup_extra.append(Stay(f"{code} (row {y['row']})", AIRBNB, y["arrive"], y["depart"], accom, "conflict",
+                                      None, "missing", nights_tag="conflict", source=f"Stays row {y['row']}"))
+        stays.append(s)
+    return stays, dup_extra, dict(dup=dup_ns, no_rev=no_rev_ns, basis=basis_n, params=params_n,
+                                  fee_rate=fee_rate, cleaning=typical_clean)
+
+
+def build_off_platform_stays(trips, cleaning_evidence, reg, path_name):
+    stays, trip_n, clean_n = [], None, None
+    for t in trips:
+        s = Stay(f"OFF-{t['start']}", OFF, t["start"], t["end"], t["price"],
+                 "inferred" if t["price"] is not None else "missing", 0.0 if t["price"] is not None else None,
+                 "assumption" if t["price"] is not None else "missing", nights_tag="inferred",
+                 source=f"{path_name} › {t['label']} (trip row {t['row']}" + (f", price row {t['price_row']})" if t["price_row"] else ")"))
+        if trip_n is None:
+            trip_n = reg.add("inferred", "Off-platform stays",
+                             "Dates come from the worksheet's 'Specific Dates' table and the price from the matching section's "
+                             "'Finalized' row. Assumed to have happened as planned; there is no check-in or receipt record.", ())
+        reg.item(trip_n)["months"] |= s.months
+        s.refs.add(trip_n)
+        if t["price"] is None:
+            s.refs.add(reg.add("missing", "Off-platform trip without a price",
+                               f"{s.key} ({t['label']}): dates but no 'Finalized' price; nights counted, revenue missing.", s.months))
+        else:
+            if clean_n is None:
+                ev = (f"{sum(cleaning_evidence)}/{len(cleaning_evidence)} comparison totals in the trip table equal the sum of "
+                      "that trip's listed nightly rates with no cleaning added." if cleaning_evidence else "No evidence either way.")
+                clean_n = reg.add("assumption", "Cleaning inside off-platform prices",
+                                  f"Off-platform agreed prices are treated as accommodation only, cleaning $0. {ev} "
+                                  "Impact: if a cleaning fee is inside the price, that stay's ADR is overstated by fee ÷ nights.", ())
+            reg.item(clean_n)["months"].add(ym_of(s.check_in))
+            s.refs.add(clean_n)
+            if t["instalments"] and t["paid"] < t["instalments"]:
+                s.refs.add(reg.add("assumption", "Off-platform payment not marked complete",
+                                   f"{s.key} ({t['label']}): {t['paid']} of {t['instalments']} payment notes say 'paid'. Revenue "
+                                   f"counted at the agreed ${t['price']:,.2f}.", s.months))
+        if t["nights_cell"] is not None and int(t["nights_cell"]) != s.nights:
+            s.refs.add(reg.add("conflict", "Off-platform nights vs dates",
+                               f"{s.key}: trip table says {int(t['nights_cell'])} nights, dates give {s.nights}; dates used.", s.months))
+        stays.append(s)
+    return stays
+
+
+# ---------------------------------------------------------------- metrics
+
+
+def compute(stays, avail_sheet, window, raw_months, *, off_in_sheet=False, extra=None):
+    months = {}
+    for ym in window:
+        cal = calendar.monthrange(*ym)[1]
+        weekend = sum(date(ym[0], ym[1], d).weekday() in WEEKEND for d in range(1, cal + 1))
+        months[ym] = Month(ym, cal, avail_sheet.get(ym), weekend, raw=ym in raw_months)
+    for s in stays:
+        for d in nights_between(s.check_in, s.check_out):
+            m = months.get(ym_of(d))
+            if m is None:
+                continue
+            m.booked += 1
+            m.weekend_booked += d.weekday() in WEEKEND
+            m.by_channel[s.channel] += 1
+            m.night_tags.add(s.nights_tag)
+            if s.accom is None:
+                m.no_rev_nights += 1
+            else:
+                m.rev += s.accom / s.nights
+                m.rev_nights += 1
+                m.rev_tags.add(s.accom_tag)
+        m = months.get(ym_of(s.check_in))
+        if m:
+            m.checkins.append(s)
+            if s.cleaning is None:
+                m.cleaning_missing += 1
+            else:
+                m.cleaning += s.cleaning
+                m.clean_tags.add(s.cleaning_tag)
+    for ym, (nights, amount) in (extra or {}).items():
+        m = months[ym]
+        m.booked += nights
+        m.by_channel[OFF] += nights
+        m.rev += amount
+        m.rev_nights += nights
+        m.night_tags.add("assumption")
+        m.rev_tags.add("assumption")
+    for m in months.values():
+        if m.avail_sheet is not None:
+            m.available = m.avail_sheet + (0 if off_in_sheet else m.by_channel[OFF])
+            m.blocked = m.cal - m.available
+    return months
+
+
+def peer_month(months, ym):
+    """Same calendar month in another year of the window, nearest first."""
+    peers = [m for k, m in months.items() if k[1] == ym[1] and k != ym and m.adr is not None and m.occ is not None]
+    return min(peers, key=lambda m: abs(m.ym[0] - ym[0])) if peers else None
+
+
+def diff_months(base, alt, hi, lo):
+    out = []
+    for ym, b in base.items():
+        a = alt[ym]
+        row = dict(ym=ym, occ=(b.occ, a.occ), adr=(b.adr, a.adr), revpan=(b.revpan, a.revpan),
+                   cls=(classify(b.occ, hi, lo), classify(a.occ, hi, lo)))
+        if row["cls"][0] != row["cls"][1] or not all(close(*row[k]) for k in ("occ", "adr", "revpan")):
+            out.append(row)
+    return out
+
+
+# ---------------------------------------------------------------- report
+
+
+def render(ctx):
+    a, reg, base, window, stays = ctx["args"], ctx["reg"], ctx["base"], ctx["window"], ctx["stays"]
+    hi, lo = a.high, a.low
+    out = []
+    w = out.append
+    ms = [base[ym] for ym in window]
+
+    w(f"# RevPAN diagnostic — generated {a.as_of}")
+    w("")
+    w(f"Analysis window **{ym_label(window[0])} to {ym_label(window[-1])}** ({len(window)} months), set by the months in the "
+      f"availability sheet. Generated by `script/revpan-diagnostic` (ledger reading `{a.ledger_basis}`, thresholds "
+      f"rate > {hi:.0%} / occupancy < {lo:.0%}).")
+    w("")
+    w("**Revenue data — this file is gitignored and must not be committed.** No guest names, emails, bank details or "
+      "correspondence are reproduced; stays are identified by Airbnb confirmation code or `OFF-<check-in>`.")
+    w("")
+    w("Tags: **[verified]** computed directly from source rows · **[inferred]** derived by a stated rule · **[assumption]** a "
+      "choice was made; see register · **[conflict]** sources disagree; register shows both · **[missing]** needed but absent. "
+      "A cell carries the weakest tag of its inputs. `#n` cites the issue register (§2.2). `n/a` = undefined (zero denominator).")
+    w("")
+
+    # 1 ------------------------------------------------------------------
+    w("## 1. Inventory")
+    w("")
+    w("### 1.1 Files")
+    w("")
+    w(table(["file (› sheet)", "format", "rows", "date range", "columns", "what it represents"],
+            [[i["file"], i["fmt"], f"{i['rows']} [verified]", i["range"], ", ".join(i["columns"]) or "—", i["represents"]]
+             for i in ctx["inventory"]]))
+    w("")
+    w("Rows = data rows below the header (CSV and ledger), month rows (availability), or non-empty rows (pivot, worksheets).")
+    w("")
+    w("### 1.2 Column mapping")
+    w("")
+    fee = ctx["build"]["fee_rate"]
+    mapping = [
+        ["Stay nights, check-in/out", "CSV `Start date`, `End date` (Type = Reservation); else Stays `Arrive`, `Depart`; off-platform trip table `From`, `To`",
+         "one night per date in [check-in, check-out)", "[verified]; off-platform [inferred]"],
+        ["Accommodation revenue", "CSV `Gross earnings − Cleaning fee`", "raw row wins over the ledger when both exist", "[verified]"],
+        ["", "Stays `Total` where `Per Night` is filled", "Total = Per Night × Nights", "[inferred]"],
+        ["", "Stays `Total` where `Per Night` is blank", f"reading `{a.ledger_basis}`: {LEDGER_BASES[a.ledger_basis]}", "[assumption]"],
+        ["", "off-platform section's 'Finalized' price (column F)", "agreed price = accommodation", "[inferred]"],
+        ["Excluded from revenue", "CSV `Service fee`, `Fast Pay fee`, `Occupancy taxes` / `Airbnb remitted tax`, Type = Pass Through Tot; Stays `MAT`, `MAT $`",
+         "fees and taxes", "—"],
+        ["Cleaning fee revenue", "CSV `Cleaning fee`", "credited to the check-in month", "[verified]"],
+        ["Per-night revenue", "accommodation ÷ stay nights", "no source has a nightly breakdown", "[inferred]"],
+        ["Available nights", "Available Nights `Available Days` + off-platform nights in month", "see #" + str(ctx["avail_n"]), "[inferred]/[assumption]"],
+        ["Owner-blocked nights", "calendar nights − available", "cause unknown", "[inferred]"],
+        ["Booking date / lead time", "CSV `Booking date`", "check-in − booking date", "[verified]"],
+        ["Channel", "CSV or Stays → Airbnb; off-platform workbook → Off-platform", "", "[verified]"],
+        ["Host fee rate, typical cleaning", "CSV `Service fee ÷ Gross earnings`, `Cleaning fee`", f"medians ({bare_pct(fee)}, "
+         f"{bare_money(ctx['build']['cleaning'])})", "[inferred]"],
+        ["Not used", "Quarterly Summary pivot; CSV `Paid out`, `Details`, `Guest`, `Reference code`; worksheet scenarios and messages",
+         "summary figures or personal data", "—"],
+    ]
+    w(table(["metric", "source column(s)", "rule", "tag"], mapping))
+    w("")
+
+    # 2 ------------------------------------------------------------------
+    w("## 2. Definitions and rules applied")
+    w("")
+    w("### 2.1 Definitions")
+    w("")
+    w("- **Stay night** — one night of one reservation; revenue is split evenly across a stay's nights and each night lands in its own month.")
+    w("- **Calendar nights** — days in the month. **Owner-blocked** = calendar − available. **Available** = Available Days + off-platform nights (#%d)." % ctx["avail_n"])
+    w("- **Booked** — stay nights in the month, both channels. **Occupancy** = booked ÷ available.")
+    w("- **ADR** = accommodation revenue ÷ booked nights with known revenue. **RevPAN** = accommodation revenue ÷ calendar nights (primary). **RevPAN(avail)** = ÷ available nights.")
+    w("- **Reservations / avg LOS** — stays checking in that month, and their mean total nights. **Cleaning** — credited to the check-in month.")
+    w(f"- **Classification** — occupancy > {hi:.0%} rate-constrained; < {lo:.0%} occupancy-constrained; otherwise mixed. Months with fewer than {LOW_BASE} available nights are flagged *low base*.")
+    w("- **Aggregates** are sums of nights and dollars, never averages of monthly ratios (ADR is weighted by booked nights).")
+    w("")
+    w("### 2.2 Issue register")
+    w("")
+    w(table(["#", "tag", "topic", "detail", "months", "effect on results (§4.8)"],
+            [[i["n"], f"[{i['tag']}]", i["topic"], i["detail"], month_ranges(i["months"]) or ("all" if i["whole_window"] else "—"),
+              "; ".join(i["impact"]) or "—"] for i in reg.items]))
+    w("")
+
+    # 3 ------------------------------------------------------------------
+    w("## 3. Core table")
+    w("")
+    rows = []
+    for m in ms:
+        mix = " · ".join(f"{ch} {n}n ({n / m.booked:.0%})" for ch, n in sorted(m.by_channel.items())) if m.booked else "—"
+        clean = (f_money(m.cleaning, weakest(m.clean_tags)) if m.clean_tags else
+                 (f"$0.00 [{m.booked_tag}]" if not m.checkins else "— [missing]"))
+        if m.cleaning_missing and m.clean_tags:
+            clean += f" + {m.cleaning_missing} stay(s) [missing]"
+        rev = f_money(m.rev, m.rev_tag) + (f" + {m.no_rev_nights}n [missing]" if m.no_rev_nights else "")
+        los = statistics.mean(s.nights for s in m.checkins) if m.checkins else None
+        flags = refs(reg.for_month(m.ym)) + (" · low base" if m.available is not None and m.available < LOW_BASE else "")
+        rows.append([
+            f"{ym_label(m.ym)} {flags}".strip(), f_int(m.cal, "verified"), f_int(m.blocked, m.avail_tag),
+            f_int(m.available, m.avail_tag), f_int(m.booked, m.booked_tag), f_pct(m.occ, m.occ_tag),
+            f_money(m.adr, m.adr_tag), f_money(m.revpan, m.rev_tag), f_money(m.revpan_avail, weakest([m.rev_tag, m.avail_tag])),
+            rev, clean, f_int(len(m.checkins), m.booked_tag), f_num(los, m.los_tag) if los is not None else "n/a",
+            mix + (f" [{m.booked_tag}]" if m.booked else ""),
+        ])
+
+    def total_row(label, group):
+        cal = sum(m.cal for m in group)
+        avail = sum(m.available or 0 for m in group)
+        booked = sum(m.booked for m in group)
+        rev = sum(m.rev for m in group)
+        rn = sum(m.rev_nights for m in group)
+        miss = sum(m.no_rev_nights for m in group)
+        checkins = [s for m in group for s in m.checkins]
+        chans = Counter()
+        for m in group:
+            chans.update(m.by_channel)
+        tb = weakest([m.booked_tag for m in group])
+        ta = weakest([m.avail_tag for m in group])
+        tr = weakest([m.rev_tag for m in group])
+        tadr = weakest([m.adr_tag for m in group if m.rev_nights])
+        ct = [t for m in group for t in m.clean_tags]
+        cmiss = sum(m.cleaning_missing for m in group)
+        return [
+            f"**{label}**", f_int(cal, "verified"), f_int(cal - avail, ta), f_int(avail, ta), f_int(booked, tb),
+            f_pct(booked / avail if avail else None, weakest([tb, ta])), f_money(rev / rn if rn else None, tadr),
+            f_money(rev / cal, tr), f_money(rev / avail if avail else None, weakest([tr, ta])),
+            f_money(rev, tr) + (f" + {miss}n [missing]" if miss else ""),
+            (f_money(sum(m.cleaning for m in group), weakest(ct)) if ct else "—") + (f" + {cmiss} stay(s) [missing]" if cmiss else ""),
+            f_int(len(checkins), tb),
+            f_num(statistics.mean(s.nights for s in checkins), weakest([m.los_tag for m in group])) if checkins else "n/a",
+            " · ".join(f"{ch} {n}n ({n / booked:.0%})" for ch, n in sorted(chans.items())) + f" [{tb}]" if booked else "—",
+        ]
+
+    years = sorted({ym[0] for ym in window})
+    for y in years:
+        group = [m for m in ms if m.ym[0] == y]
+        partial = "" if len(group) == 12 else f" ({ym_label(group[0].ym)}…{ym_label(group[-1].ym)} only)"
+        rows.append(total_row(f"{y}{partial}", group))
+    rows.append(total_row("Window total", ms))
+    w(table(["month", "calendar nights", "owner-blocked", "available", "booked", "occupancy %", "ADR", "RevPAN",
+             "RevPAN(avail)", "accommodation revenue", "cleaning fees", "reservations", "avg LOS", "channel mix"], rows))
+    w("")
+    w("Partial months: every window month is a full calendar month, but months citing a [missing] issue (for example no raw "
+      "export, or a stay without revenue) have partial *data*; their refs are in the month column. "
+      + ctx["after_window"])
+    w("")
+    w("### 3.1 Reservation ledger as used")
+    w("")
+    lrows = []
+    for s in stays:
+        lead = (s.check_in - s.booked_on).days if s.booked_on else None
+        lrows.append([
+            s.key, s.channel, s.check_in, s.check_out, f_int(s.nights, s.nights_tag), f_money(s.accom, s.accom_tag)
+            if s.accom is not None else "— [missing]",
+            f_money(s.accom / s.nights, s.accom_tag) if s.accom is not None else "n/a",
+            f_money(s.cleaning, s.cleaning_tag) if s.cleaning is not None else "— [missing]",
+            s.booked_on or "— [missing]", f_int(lead, "verified") if lead is not None else "n/a", s.source, refs(s.refs),
+        ])
+    w(table(["stay", "channel", "check-in", "check-out", "nights", "accommodation", "per night", "cleaning", "booked on",
+             "lead days", "source", "refs"], lrows))
+    w("")
+
+    # 4 ------------------------------------------------------------------
+    w("## 4. Derived analysis")
+    w("")
+    w("### 4.1 Constraint classification")
+    w("")
+    w(f"Thresholds: occupancy **> {hi:.0%}** rate-constrained (underpriced) · **< {lo:.0%}** occupancy-constrained (demand or rules) "
+      f"· otherwise mixed. Occupancy is booked ÷ available. *Low base* = under {LOW_BASE} available nights.")
+    w("")
+    crow = []
+    for m in ms:
+        c = classify(m.occ, hi, lo)
+        alts = sorted({(v["cls"][1], n) for n, changes in ctx["class_changes"].get(m.ym, []) for v in [changes]})
+        alt_text = "; ".join(f"{cls} if {refs([n])}" for cls, n in alts) or "stable under all readings"
+        crow.append([ym_label(m.ym), f_int(m.available, m.avail_tag), f_int(m.booked, m.booked_tag), f_pct(m.occ, m.occ_tag),
+                     c + (" · low base" if m.available is not None and m.available < LOW_BASE else ""), alt_text])
+    w(table(["month", "available", "booked", "occupancy", "classification", "classification under other readings"], crow))
+    w("")
+    counts = Counter(classify(m.occ, hi, lo) for m in ms)
+    w("Count of months: " + ", ".join(f"{k} {v} [{weakest([m.occ_tag for m in ms])}]" for k, v in sorted(counts.items())) + ".")
+    w("")
+
+    w("### 4.2 Year over year")
+    w("")
+    yoy = []
+    for m in ms:
+        nxt = base.get((m.ym[0] + 1, m.ym[1]))
+        if not nxt:
+            continue
+        d_occ = (nxt.occ - m.occ) * 100 if m.occ is not None and nxt.occ is not None else None
+        yoy.append([
+            calendar.month_abbr[m.ym[1]], f"{m.ym[0]} → {nxt.ym[0]}",
+            f"{f_int(m.available, m.avail_tag)} → {f_int(nxt.available, nxt.avail_tag)}",
+            f"{f_pct(m.occ, m.occ_tag)} → {f_pct(nxt.occ, nxt.occ_tag)}",
+            f_num(d_occ, weakest([m.occ_tag, nxt.occ_tag])) + " pp" if d_occ is not None else "n/a",
+            f"{f_money(m.adr, m.adr_tag)} → {f_money(nxt.adr, nxt.adr_tag)}",
+            f"{f_money(m.revpan, m.rev_tag)} → {f_money(nxt.revpan, nxt.rev_tag)}",
+            f_money(nxt.revpan - m.revpan, weakest([m.rev_tag, nxt.rev_tag])),
+        ])
+    if yoy:
+        w(table(["month", "years", "available", "occupancy", "Δ occupancy", "ADR", "RevPAN", "Δ RevPAN"], yoy))
+        pairs = [(m, base[(m.ym[0] + 1, m.ym[1])]) for m in ms if (m.ym[0] + 1, m.ym[1]) in base]
+        prev, cur = [p for p, _ in pairs], [c for _, c in pairs]
+        w("")
+        w("Matched months pooled (sums, not averages): " + "; ".join(
+            f"{lab}: available {sum(x.available or 0 for x in g)}, booked {sum(x.booked for x in g)}, occupancy "
+            f"{bare_pct(sum(x.booked for x in g) / sum(x.available or 0 for x in g)) if sum(x.available or 0 for x in g) else 'n/a'}, "
+            f"Airbnb nights ÷ Available Days {sum(x.by_channel[AIRBNB] for x in g)}/{sum(x.avail_sheet or 0 for x in g)} = "
+            f"{bare_pct(sum(x.by_channel[AIRBNB] for x in g) / sum(x.avail_sheet or 0 for x in g)) if sum(x.avail_sheet or 0 for x in g) else 'n/a'}, "
+            f"RevPAN {bare_money(sum(x.rev for x in g) / sum(x.cal for x in g))} "
+            f"[{weakest([x.occ_tag for x in g] + [x.rev_tag for x in g])}]"
+            for lab, g in (("earlier year", prev), ("later year", cur))) + ".")
+    else:
+        w("No calendar month appears in two years of the window. [missing]")
+    w("")
+
+    w("### 4.3 Weekend vs midweek")
+    w("")
+    w("Weekend = the nights of Friday and Saturday; midweek = Sunday–Thursday nights. *Calendar basis* divides by every "
+      f"weekend/midweek night in the month. *Available basis* spreads the month's owner-blocked nights evenly across weekdays (#{ctx['dow_n']}), "
+      "because block dates are not in the data; if owner use falls mostly on weekends, true weekend occupancy is higher than shown.")
+    w("")
+    wk, over100 = [], []
+    tot = Counter()
+    for m in ms:
+        mid_cal, mid_booked = m.cal - m.cal_weekend, m.booked - m.weekend_booked
+        share = m.available / m.cal if m.available is not None else None
+        if share and (m.weekend_booked > m.cal_weekend * share or mid_booked > mid_cal * share):
+            over100.append(m.ym)
+        tb = m.booked_tag
+        wk.append([
+            ym_label(m.ym), f"{m.weekend_booked}/{m.cal_weekend} [{tb}]", f_pct(m.weekend_booked / m.cal_weekend, tb),
+            f"{mid_booked}/{mid_cal} [{tb}]", f_pct(mid_booked / mid_cal, tb),
+            f_pct(m.weekend_booked / (m.cal_weekend * share), "assumption") if share else "n/a",
+            f_pct(mid_booked / (mid_cal * share), "assumption") if share else "n/a",
+        ])
+        tot.update(wb=m.weekend_booked, wc=m.cal_weekend, mb=mid_booked, mc=mid_cal,
+                   wa=m.cal_weekend * (share or 0), ma=mid_cal * (share or 0))
+    tb = weakest([m.booked_tag for m in ms])
+    wk.append(["**Window**", f"{tot['wb']}/{tot['wc']} [{tb}]", f_pct(tot["wb"] / tot["wc"], tb), f"{tot['mb']}/{tot['mc']} [{tb}]",
+               f_pct(tot["mb"] / tot["mc"], tb), f_pct(tot["wb"] / tot["wa"], "assumption") if tot["wa"] else "n/a",
+               f_pct(tot["mb"] / tot["ma"], "assumption") if tot["ma"] else "n/a"])
+    w(table(["month", "weekend booked / calendar", "weekend occ (calendar)", "midweek booked / calendar",
+             "midweek occ (calendar)", "weekend occ (available)", "midweek occ (available)"], wk))
+    if over100:
+        w("")
+        w(f"Available-basis values above 100% ({month_ranges(over100)}) show the even-spread assumption (#{ctx['dow_n']}) is wrong "
+          "in those months: their blocks fell unevenly across the week.")
+    w("")
+    w("Arrival day and length of stay (all stays in the window):")
+    w("")
+    arr = defaultdict(list)
+    for s in stays:
+        if ym_of(s.check_in) in base:
+            arr[s.check_in.weekday()].append(s)
+    w(table(["arrival day", "stays", "LOS values", "stays covering both Fri and Sat nights"],
+            [[WEEKDAYS[d], f_int(len(arr[d]), weakest([s.nights_tag for s in arr[d]])),
+              ", ".join(str(s.nights) for s in sorted(arr[d], key=lambda s: s.nights)),
+              f_int(sum({4, 5} <= {x.weekday() for x in nights_between(s.check_in, s.check_out)} for s in arr[d]),
+                    weakest([s.nights_tag for s in arr[d]]))]
+             for d in range(7) if arr[d]]))
+    in_arr = [x for d in arr for x in arr[d]]
+    both = [x for x in in_arr if {4, 5} <= {n.weekday() for n in nights_between(x.check_in, x.check_out)}]
+    twos = [x for x in in_arr if x.nights == 2]
+    two_fri = [x for x in twos if x.check_in.weekday() == 4]
+    w("")
+    w(f"{f_int(len(both), weakest([x.nights_tag for x in both]))} of {len(in_arr)} stays include both a Friday and a Saturday night; "
+      f"{f_int(len(two_fri), weakest([x.nights_tag for x in two_fri]))} of {len(twos)} two-night stays arrive on a Friday.")
+    w("")
+
+    w("### 4.4 Orphan nights")
+    w("")
+    w("Unsold gaps of 1 or 2 nights between consecutive stays (both channels), valued at the gap month's ADR. A gap is "
+      "*confirmed open* only when its month had Available Days = calendar nights; otherwise the gap nights may have been "
+      f"blocked (#{ctx['orphan_n']}). Gaps next to owner blocks are invisible without block dates.")
+    w("")
+    orow, by_month = [], defaultdict(lambda: [0, 0.0, set()])
+    for g in ctx["gaps"]:
+        for d in g["dates"]:
+            m = base.get(ym_of(d))
+            if m is None:
+                continue
+            confirmed = m.avail_sheet == m.cal
+            tag = weakest(["inferred" if confirmed else "assumption", m.adr_tag if m.adr is not None else "missing"])
+            orow.append([f"{g['prev'].key} → {g['next'].key}", d, WEEKDAYS[d.weekday()], ym_label(m.ym),
+                         "yes" if confirmed else "unconfirmed", f_money(m.adr, m.adr_tag), f_money(m.adr, tag)])
+            bm = by_month[m.ym]
+            bm[0] += 1
+            bm[1] += m.adr or 0
+            bm[2].add(tag)
+    if orow:
+        w(table(["gap between", "night", "day", "month", "confirmed open", "month ADR", "value"], orow))
+        w("")
+        w(table(["month", "orphan nights", "value at month ADR"],
+                [[ym_label(ym), f_int(v[0], weakest(v[2])), f_money(v[1], weakest(v[2]))] for ym, v in sorted(by_month.items())]
+                + [["**Window**", f_int(sum(v[0] for v in by_month.values()), weakest([t for v in by_month.values() for t in v[2]])),
+                    f_money(sum(v[1] for v in by_month.values()), weakest([t for v in by_month.values() for t in v[2]]))]]))
+    else:
+        w("No 1–2 night gaps between stays in the window [inferred].")
+    short = min((s.nights for s in stays if s.channel == AIRBNB), default=None)
+    w("")
+    w(f"Context: the shortest Airbnb stay in the data is {short} nights [verified], so a 2-night gap was sellable under whatever "
+      "rule admitted that stay; minimum-stay history is not in the data (#%d)." % ctx["minstay_n"])
+    if ctx["overlaps"]:
+        w("")
+        w("Overlapping stays: " + "; ".join(f"{x.key} and {y.key}" for x, y in ctx["overlaps"]) + " [conflict].")
+    w("")
+
+    w("### 4.5 Length of stay vs minimum stay")
+    w("")
+    buckets = [("1", 1, 1), ("2", 2, 2), ("3", 3, 3), ("4", 4, 4), ("5–6", 5, 6), ("7–13", 7, 13), ("14+", 14, 10**6)]
+    in_window = [s for s in stays if ym_of(s.check_in) in base]
+    lrow = []
+    for name, lo_n, hi_n in buckets:
+        cells = [name]
+        for ch in (AIRBNB, OFF):
+            g = [s for s in in_window if s.channel == ch and lo_n <= s.nights <= hi_n]
+            cells.append(f_int(len(g), weakest([s.nights_tag for s in g])))
+        g = [s for s in in_window if lo_n <= s.nights <= hi_n]
+        cells.append(f_int(sum(s.nights for s in g), weakest([s.nights_tag for s in g])))
+        lrow.append(cells)
+    w(table(["LOS (nights)", "Airbnb stays", "Off-platform stays", "booked nights in bucket"], lrow))
+    w("")
+    for ch in (AIRBNB, OFF):
+        g = [s.nights for s in in_window if s.channel == ch]
+        if g:
+            t = weakest([s.nights_tag for s in in_window if s.channel == ch])
+            w(f"- {ch}: {len(g)} stays, median LOS {f_num(statistics.median(g), t)}, mean "
+              f"{f_num(sum(g) / len(g), t)}, min {min(g)}, max {max(g)}.")
+    w(f"- Minimum-stay settings: **not in the data** [missing] (#{ctx['minstay_n']}); no comparison against the rule is possible.")
+    w("")
+
+    w("### 4.6 Lead time")
+    w("")
+    leads = [(s, (s.check_in - s.booked_on).days) for s in in_window if s.booked_on]
+    if leads:
+        w(table(["stay", "booked on", "check-in", "lead days"],
+                [[s.key, s.booked_on, s.check_in, f_int(d, "verified")] for s, d in leads]))
+        w("")
+        lb = [("0–7", 0, 7), ("8–30", 8, 30), ("31–60", 31, 60), ("61–90", 61, 90), ("91+", 91, 10**6)]
+        w("Distribution: " + ", ".join(f"{n}: {sum(a_ <= d <= b_ for _, d in leads)}" for n, a_, b_ in lb)
+          + f" [verified]; median {statistics.median(d for _, d in leads):.0f} days [verified]. "
+          f"Only {len(leads)} of {len(in_window)} stays have a booking date (#{ctx['lead_n']}), too few to set policy on.")
+    else:
+        w(f"No booking dates in the data [missing] (#{ctx['lead_n']}).")
+    w("")
+
+    w("### 4.7 Opportunity cost of owner-blocked nights")
+    w("")
+    w("Owner-blocked nights × the month's ADR (the ceiling: every blocked night sells) and × ADR × the month's occupancy "
+      "(blocked nights sell at the rate open nights did). Where a month has no ADR, the same calendar month in the other year is "
+      "used and tagged [inferred]; with neither, [missing].")
+    w("")
+    oc_rows, oc_tot = [], dict(n=0, gross=0.0, adj=0.0, unvalued=0, tags=set())
+    for m in ms:
+        if not m.blocked:
+            continue
+        src, adr_, occ_, tag = ym_label(m.ym), m.adr, m.occ, weakest([m.avail_tag, m.adr_tag, m.occ_tag])
+        if adr_ is None or occ_ is None:
+            p = peer_month(base, m.ym)
+            if p:
+                src, adr_, occ_ = f"{ym_label(p.ym)} (same month, other year)", p.adr, p.occ
+                tag = weakest(["inferred", m.avail_tag, p.adr_tag, p.occ_tag])
+        oc_tot["n"] += m.blocked
+        if adr_ is None:
+            oc_rows.append([ym_label(m.ym), f_int(m.blocked, m.avail_tag), "— [missing]", "n/a", "n/a", "n/a"])
+            oc_tot["unvalued"] += m.blocked
+            continue
+        gross, adj = m.blocked * adr_, m.blocked * adr_ * occ_
+        oc_tot["gross"] += gross
+        oc_tot["adj"] += adj
+        oc_tot["tags"].add(tag)
+        oc_rows.append([ym_label(m.ym) + (" · low base" if m.available is not None and m.available < LOW_BASE else ""),
+                        f_int(m.blocked, m.avail_tag), src, f_money(adr_, tag), f_money(gross, tag), f_money(adj, tag)])
+    tt = weakest(oc_tot["tags"])
+    oc_rows.append(["**Window**", f_int(oc_tot["n"], weakest([m.avail_tag for m in ms])), "", "",
+                    f_money(oc_tot["gross"], tt), f_money(oc_tot["adj"], tt)])
+    w(table(["month", "owner-blocked", "ADR source", "ADR used", "value at ADR (ceiling)", "value at ADR × occupancy"], oc_rows))
+    w("")
+    w(f"{oc_tot['unvalued']} blocked nights could not be valued (no ADR in that month or its peer) [missing]. Blocked nights "
+      "include closure and maintenance, not only personal use (#%d)." % ctx["blocked_n"])
+    w("")
+
+    w("### 4.8 Sensitivity to conflicts and assumptions")
+    w("")
+    w("Each row re-runs the whole calculation under one alternative reading and lists the months that move. Placement rows "
+      "(an undated stay put in a given month) are shown only where the classification changes.")
+    w("")
+    srows = []
+    for name, ns, changes, placement in ctx["variant_results"]:
+        tag = weakest([reg.item(n)["tag"] for n in ns])
+        for c in changes:
+            if placement and c["cls"][0] == c["cls"][1]:
+                continue
+            srows.append([f"{name} ({refs(ns)})", ym_label(c["ym"]),
+                          f"{bare_pct(c['occ'][0])} → {f_pct(c['occ'][1], tag)}",
+                          f"{bare_money(c['adr'][0])} → {f_money(c['adr'][1], tag)}",
+                          f"{bare_money(c['revpan'][0])} → {f_money(c['revpan'][1], tag)}",
+                          f"{c['cls'][0]} → {c['cls'][1]}" if c["cls"][0] != c["cls"][1] else "unchanged"])
+    w(table(["alternative reading", "month", "occupancy", "ADR", "RevPAN", "classification"], srows) if srows
+      else "No alternative reading changes any month.")
+    w("")
+    basis_stays = [s for s in stays if s.alt_accom]
+    if basis_stays:
+        w(f"Per-night rate implied by each ledger reading (#{ctx['build']['basis']}), next to ledger rows that state a per-night rate:")
+        w("")
+        br = [[s.key, s.check_in, s.nights] + [f_money(s.alt_accom.get(b, 0) / s.nights, "assumption") for b in LEDGER_BASES]
+              for s in basis_stays]
+        br += [[s.key, s.check_in, s.nights] + [f_money(s.accom / s.nights, s.accom_tag)] * len(LEDGER_BASES)
+               for s in stays if s.channel == AIRBNB and not s.alt_accom and s.accom is not None]
+        br.sort(key=lambda r: r[1])
+        w(table(["stay", "check-in", "nights"] + [f"per night if `{b}`" for b in LEDGER_BASES], br))
+        w("")
+
+    w("### 4.9 Lever sizing")
+    w("")
+    avail_t = sum(m.available or 0 for m in ms)
+    cal_t = sum(m.cal for m in ms)
+    booked_t = sum(m.booked for m in ms)
+    rev_t = sum(m.rev for m in ms)
+    rn_t = sum(m.rev_nights for m in ms)
+    t_all = weakest([m.rev_tag for m in ms] + [m.occ_tag for m in ms])
+    w("RevPAN decomposes as **availability share × occupancy × ADR** (available ÷ calendar × booked ÷ available × revenue ÷ booked):")
+    w("")
+    if avail_t and rn_t:
+        w(f"- Window: {f_pct(avail_t / cal_t, weakest([m.avail_tag for m in ms]))} × "
+          f"{f_pct(booked_t / avail_t, weakest([m.occ_tag for m in ms]))} × {f_money(rev_t / rn_t, weakest([m.adr_tag for m in ms if m.rev_nights]))} "
+          f"≈ {f_money(avail_t / cal_t * booked_t / avail_t * rev_t / rn_t, t_all)} per calendar night "
+          f"(actual RevPAN {f_money(rev_t / cal_t, t_all)}; the gap is nights without known revenue).")
+    gap_rows, gap_tags, gap_total = [], set(), 0.0
+    for m in ms:
+        if classify(m.occ, hi, lo) != "occupancy-constrained":
+            continue
+        need = max(0, math.ceil(lo * m.available) - m.booked)
+        adr_, tag = m.adr, weakest([m.occ_tag, m.adr_tag])
+        if adr_ is None:
+            p = peer_month(base, m.ym)
+            adr_, tag = (p.adr, weakest(["inferred", m.occ_tag, p.adr_tag])) if p else (None, "missing")
+        value = need * adr_ if adr_ is not None else None
+        gap_total += value or 0
+        gap_tags.add(tag)
+        gap_rows.append([ym_label(m.ym), f_int(need, tag), f_money(adr_, tag), f_money(value, tag) if value is not None else "— [missing]"])
+    orphan_value = sum(v[1] for v in by_month.values())
+    orphan_tag = weakest([t for v in by_month.values() for t in v[2]])
+    w(f"- Owner-blocked nights: {f_int(oc_tot['n'], weakest([m.avail_tag for m in ms]))} of {cal_t} calendar nights; valued "
+      f"{f_money(oc_tot['adj'], tt)} at ADR × occupancy, {f_money(oc_tot['gross'], tt)} ceiling (§4.7).")
+    w(f"- Orphan nights: {f_money(orphan_value, orphan_tag)} at month ADR (§4.4).")
+    w(f"- Occupancy gap: nights needed to lift each occupancy-constrained month to {lo:.0%}, at that month's ADR: "
+      f"{f_money(gap_total, weakest(gap_tags))} across {len(gap_rows)} months.")
+    rate_months = [m for m in ms if classify(m.occ, hi, lo) == "rate-constrained"]
+    if rate_months:
+        w("- Rate lever: each +$10 on ADR in rate-constrained months is worth " + ", ".join(
+            f"{ym_label(m.ym)} {f_money(m.booked * 10, m.booked_tag)}" + (" (low base)" if (m.available or 0) < LOW_BASE else "")
+            for m in rate_months) + " at current booked nights.")
+    else:
+        w("- Rate lever: no rate-constrained months [inferred].")
+    w("")
+    if gap_rows:
+        w(table(["occupancy-constrained month", f"nights to reach {lo:.0%}", "ADR used", "value"], gap_rows))
+        w("")
+
+    # 5-7 ----------------------------------------------------------------
+    w("## 5. Top 3 findings")
+    w("")
+    w("_Written per run from sections 3–4; each finding cites a table number and names a lever._")
+    w("")
+    w("<!-- FINDINGS -->")
+    w("")
+    w("## 6. Open questions")
+    w("")
+    w("Every [conflict] and [assumption] in the register, split by whether an alternative reading changes a conclusion "
+      "(a classification, or RevPAN by 5% or more in some month).")
+    w("")
+    material = [i for i in reg.items if i.get("material")]
+    other_q = [i for i in reg.items if not i.get("material") and i["tag"] in ("conflict", "assumption")]
+    w("**Could change a conclusion**")
+    w("")
+    for i in material:
+        w(f"- #{i['n']} [{i['tag']}] **{i['topic']}** — {'; '.join(i['impact'])}.")
+    if not material:
+        w("- None.")
+    w("")
+    w("<!-- OPEN-QUESTIONS -->")
+    w("")
+    w("**Do not change a classification**")
+    w("")
+    for i in other_q:
+        w(f"- #{i['n']} [{i['tag']}] {i['topic']}" + (f" — {'; '.join(i['impact'])}" if i["impact"] else "") + ".")
+    w("")
+    w("## 7. Missing data")
+    w("")
+    for i in reg.items:
+        if i["tag"] == "missing":
+            w(f"- #{i['n']} **{i['topic']}** — {i['detail']}")
+    w("- **Calendar block dates and reasons** — Available Days is a monthly count, so owner use, maintenance and closure "
+      "cannot be separated, placed on weekdays, or used to confirm orphan gaps. An Airbnb calendar export or an owner-use log fixes all three.")
+    w("- **Comparable-set occupancy and ADR by month** (market data for the area) — separates weak demand from weak conversion "
+      "in occupancy-constrained months.")
+    w("- **Listing funnel** — views, inquiries, declined or expired requests and cancellations; shows whether demand arrived and was lost to rules or price.")
+    w("- **Direct-booking records as rows** — dates, price, cleaning, payment received, one row per stay, instead of a pricing worksheet.")
+    w("- **Expense ledger** — out of scope here; needed before any profit or margin question.")
+    w("")
+    return "\n".join(out)
+
+
+# ---------------------------------------------------------------- main
+
+
+def guard_output(path, sources):
+    resolved = path.resolve()
+    for src in sources:
+        if src and (resolved.is_relative_to(src.resolve()) if src.is_dir() else resolved == src.resolve()):
+            sys.exit(f"refusing to write {path}: it is inside a source location ({src})")
+    top = subprocess.run(["git", "-C", str(path.parent), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if top.returncode == 0:
+        ignored = subprocess.run(["git", "-C", top.stdout.strip(), "check-ignore", "-q", str(resolved)])
+        if ignored.returncode != 0:
+            sys.exit(f"refusing to write {path}: it is inside a git work tree and not gitignored")
+
+
+def parse_args():
+    repo = Path(__file__).resolve().parent.parent
+    env = lambda k: os.environ.get(k) or None
+    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument("--earnings-dir", type=Path, default=env("REVPAN_EARNINGS_DIR"),
+                   help="MAT earnings folder with Airbnb CSVs and earnings.xlsx (env REVPAN_EARNINGS_DIR)")
+    p.add_argument("--off-platform", type=Path, default=env("REVPAN_OFF_PLATFORM"),
+                   help="off-platform stays workbook (env REVPAN_OFF_PLATFORM)")
+    p.add_argument("--out-dir", type=Path, default=Path(env("REVPAN_OUT_DIR") or repo / "docs"),
+                   help="where the report goes (env REVPAN_OUT_DIR; default docs/)")
+    p.add_argument("--as-of", type=date.fromisoformat, default=date.today(), help="report date, YYYY-MM-DD")
+    p.add_argument("--ledger-basis", choices=list(LEDGER_BASES), default="payout",
+                   help="how to read ledger totals that have no per-night rate and no raw row")
+    p.add_argument("--high", type=float, default=0.85, help="occupancy above this is rate-constrained")
+    p.add_argument("--low", type=float, default=0.60, help="occupancy below this is occupancy-constrained")
+    a = p.parse_args()
+    if not a.earnings_dir or not a.earnings_dir.is_dir():
+        p.error("--earnings-dir (or REVPAN_EARNINGS_DIR) must name an existing folder")
+    if a.off_platform and not a.off_platform.is_file():
+        p.error(f"--off-platform {a.off_platform} does not exist")
+    return a
+
+
+def main():
+    a = parse_args()
+    out_path = a.out_dir / f"revpan-diagnostic-{a.as_of:%Y%m%d}.md"
+    guard_output(out_path, [a.earnings_dir, a.off_platform])
+
+    reg, inventory = Register(), []
+    csv_rows, raw_months = read_airbnb_csvs(a.earnings_dir, inventory)
+    ledger, avail_sheet, pivot = [], {}, None
+    for wb in sorted(p for p in a.earnings_dir.glob("*.xlsx") if not p.name.startswith("~$")):
+        l, av, pv = read_earnings_workbook(wb, inventory)
+        ledger += l
+        avail_sheet.update(av)
+        pivot = pivot or pv
+    if not avail_sheet:
+        sys.exit("no 'Month' / 'Available Days' table found; cannot set the analysis window")
+    window = month_span(min(avail_sheet), max(avail_sheet))
+
+    stays, dup_extra, build = build_airbnb_stays(csv_rows, ledger, reg, a.ledger_basis)
+    unallocated = []
+    if a.off_platform:
+        trips, unallocated, cleaning_evidence = read_off_platform(a.off_platform, inventory)
+        stays += build_off_platform_stays(trips, cleaning_evidence, reg, a.off_platform.name)
+    stays.sort(key=lambda s: (s.check_in, s.check_out, s.key))
+
+    # Window-level rules and gaps.
+    for ym in window:
+        if avail_sheet.get(ym) is None:
+            reg.add("missing", "Available Days blank", f"{ym_label(ym)} has no Available Days value.", [ym])
+    missing_raw = [ym for ym in window if ym not in raw_months]
+    if missing_raw:
+        reg.add("missing", "No raw Airbnb export",
+                f"No raw export in the earnings folder covers {month_ranges(missing_raw)}; Airbnb bookings and revenue there come "
+                "from the hand-kept Stays ledger alone, and zero-booking months are [inferred] from that ledger being complete. "
+                "Raw exports are also payout-dated, so a stay paid out after a file's window is absent from it.", missing_raw)
+    probe = compute(stays, avail_sheet, window, raw_months)
+    tight = min((m for m in probe.values() if m.avail_sheet is not None and m.by_channel[AIRBNB]),
+                key=lambda m: m.avail_sheet - m.by_channel[AIRBNB], default=None)
+    over = [m for m in probe.values() if m.avail_sheet is not None and m.by_channel[AIRBNB] > m.avail_sheet]
+    falsify_unsold = [m for m in probe.values() if m.avail_sheet is not None and m.avail_sheet + m.by_channel[AIRBNB] > m.cal]
+    off_evidence = [m for m in probe.values() if m.avail_sheet is not None and m.by_channel[OFF] > m.avail_sheet]
+    off_months = [m.ym for m in probe.values() if m.by_channel[OFF]]
+    ctx_avail = (
+        "`Available Days` is read as nights open on Airbnb, **including** nights Airbnb guests booked and **excluding** nights "
+        "blocked for off-platform guests; available = Available Days + off-platform nights. Evidence for including booked nights: "
+        + (f"Airbnb booked ≤ Available Days in every month (tightest {ym_label(tight.ym)}: {tight.by_channel[AIRBNB]} of {tight.avail_sheet})"
+           if tight and not over else f"contradicted in {month_ranges([m.ym for m in over])}")
+        + ("; reading it as *unsold* open nights is impossible in " + month_ranges([m.ym for m in falsify_unsold])
+           + " (Available Days + booked exceeds the calendar)" if falsify_unsold else "")
+        + ". Evidence for excluding off-platform nights: "
+        + (f"{month_ranges([m.ym for m in off_evidence])} has more off-platform nights than Available Days"
+           if off_evidence else "none in the data")
+        + ". Only months with off-platform nights (" + (month_ranges(off_months) or "none") + ") depend on the second half."
+    )
+    avail_n = reg.add("assumption", "Meaning of Available Days", ctx_avail, off_months)
+    zero_runs = [ym for ym in window if avail_sheet.get(ym) == 0]
+    blocked_n = reg.add("inferred", "Owner-blocked nights",
+                        "Owner-blocked = calendar − available. The source has monthly counts only, so personal use, maintenance "
+                        "and deliberate closure cannot be told apart, and blocks cannot be placed on dates or weekdays."
+                        + (f" Months with zero Available Days (closed or delisted, not necessarily owner use): {month_ranges(zero_runs)}."
+                           if zero_runs else ""), window)
+    dow_n = reg.add("assumption", "Weekday mix of available nights",
+                    "For weekend/midweek occupancy against available nights, blocked nights are spread evenly across weekdays. "
+                    "Impact: if blocks fall mostly on weekends, weekend occupancy is understated and midweek overstated.")
+    reg.add("inferred", "Revenue per night",
+            "No source breaks a stay's revenue down by night; each stay's accommodation revenue is split evenly across its nights, "
+            "then each night is credited to its own month.")
+    gaps, overlaps = [], []
+    ordered = sorted(stays, key=lambda s: (s.check_in, s.check_out))
+    for x, y in zip(ordered, ordered[1:]):
+        gap = (y.check_in - x.check_out).days
+        if gap < 0:
+            overlaps.append((x, y))
+            reg.add("conflict", "Overlapping stays", f"{x.key} ({x.check_in} → {x.check_out}) overlaps {y.key} "
+                    f"({y.check_in} → {y.check_out}); both counted.", x.months | y.months)
+        elif 1 <= gap <= 2:
+            gaps.append(dict(prev=x, next=y, dates=nights_between(x.check_out, y.check_in)))
+    orphan_n = reg.add("assumption", "Orphan gaps were open",
+                       "A 1–2 night gap between stays is treated as unsold open nights. It is confirmed open only in months where "
+                       "Available Days equals calendar nights; elsewhere those nights may have been blocked.",
+                       {ym_of(d) for g in gaps for d in g["dates"]})
+    minstay_n = reg.add("missing", "Minimum-stay settings",
+                        "No minimum-stay or trip-length settings, or their change history, are in the data; LOS cannot be "
+                        "compared with the rule in force when each stay was booked.")
+    ledger_only = [s for s in stays if not s.booked_on and ym_of(s.check_in) in set(window)]
+    lead_n = reg.add("missing", "Booking dates",
+                     f"{len(ledger_only)} stays in the window have no booking date (the Stays ledger and the off-platform worksheet "
+                     "have none), so lead time rests on raw-export rows only.")
+    if pivot and pivot.get("nights") is not None:
+        unique_nights = sum(s.nights for s in stays if s.channel == AIRBNB)
+        ledger_nights = sum((x["depart"] - x["arrive"]).days for x in ledger
+                            if x["arrive"] and x["depart"] and x["nights_cell"] != 0)
+        if abs(pivot["nights"] - unique_nights) > 0:
+            reg.add("conflict", "Ledger pivot nights vs recomputed",
+                    f"{pivot['sheet']} Grand Total nights = {pivot['nights']:.0f}; the ledger's own stay rows sum to {ledger_nights} "
+                    f"nights; distinct Airbnb reservations give {unique_nights}. Metrics use the distinct-reservation count. "
+                    "If MAT was filed from this pivot, the filing carries the same difference.")
+    for u in unallocated:
+        year_months = [ym for ym in window if ym[0] == u.get("year")]
+        cand = u.get("candidate")
+        detail = (f"{u['label']}: agreed ${u['price']:,.2f} [verified] (worksheet row {u['row']}) with no trip dates"
+                  + (f"; {u['nights']} nights per {u['nights_source']} [inferred]" if u.get("nights") else "; nights unknown")
+                  + (f"; text cells suggest {cand[0]} → {cand[1]} [assumption]" if cand else "")
+                  + ". Not allocated to any month.")
+        if cand and not any(ym_of(cand[0]) == ym for ym in window):
+            detail += f" The suggested dates fall outside the window ({ym_label(ym_of(cand[0]))})."
+        u["issue"] = reg.add("missing", "Undated off-platform stay", detail,
+                             year_months if u.get("nights") and not cand else [])
+
+    base = compute(stays, avail_sheet, window, raw_months)
+    variants = []
+    alt_stays = [s for s in stays if s.alt_accom]
+    for b in LEDGER_BASES:
+        if alt_stays and b != a.ledger_basis:
+            vs = [replace(s, accom=s.alt_accom[b]) if b in s.alt_accom else s for s in stays]
+            variants.append((f"ledger totals read as `{b}`", [build["basis"]], compute(vs, avail_sheet, window, raw_months), False))
+    if dup_extra:
+        variants.append(("every duplicate ledger row counted", build["dup"],
+                         compute(stays + dup_extra, avail_sheet, window, raw_months), False))
+    if build["no_rev"]:
+        variants.append(("stays without revenue were cancelled", build["no_rev"],
+                         compute([s for s in stays if not (s.accom is None and s.channel == AIRBNB)], avail_sheet, window, raw_months), False))
+    if off_months:
+        variants.append(("Available Days already includes off-platform nights", [avail_n],
+                         compute(stays, avail_sheet, window, raw_months, off_in_sheet=True), False))
+    for u in unallocated:
+        if u.get("nights") and not u.get("candidate"):
+            for ym in window:
+                # A placement needing more open nights than the month has is impossible; skip it.
+                if ym[0] == u.get("year") and (avail_sheet.get(ym) or 0) + u["nights"] <= calendar.monthrange(*ym)[1]:
+                    variants.append((f"undated {u['label']} stay placed in {ym_label(ym)}", [u["issue"]],
+                                     compute(stays, avail_sheet, window, raw_months, extra={ym: (u["nights"], u["price"])}), True))
+
+    variant_results, class_changes = [], defaultdict(list)
+    per_issue = defaultdict(list)
+    for name, ns, months, placement in variants:
+        changes = diff_months(base, months, a.high, a.low)
+        variant_results.append((name, ns, changes, placement))
+        for c in changes:
+            if c["cls"][0] != c["cls"][1]:
+                for n in ns:
+                    class_changes[c["ym"]].append((n, c))
+        for n in ns:
+            per_issue[n].append((name, changes, placement))
+    for n, runs in per_issue.items():
+        item = reg.item(n)
+        for name, changes, placement in runs:
+            cls = [c for c in changes if c["cls"][0] != c["cls"][1]]
+            if cls:
+                item["material"] = True
+                item["impact"].append(f"if {name}: " + ", ".join(f"{ym_label(c['ym'])} {c['cls'][0]} → {c['cls'][1]}" for c in cls))
+            elif changes and not placement:
+                big = max(changes, key=lambda c: abs(c["revpan"][1] - c["revpan"][0]) / (c["revpan"][0] or 1))
+                move = (big["revpan"][1] - big["revpan"][0]) / (big["revpan"][0] or 1)
+                if abs(move) >= 0.05:
+                    item["material"] = True
+                item["impact"].append(f"if {name}: no classification change; largest RevPAN move {ym_label(big['ym'])} "
+                                      f"{bare_money(big['revpan'][0])} → {bare_money(big['revpan'][1])} ({move:+.0%})")
+        if all(p for _, _, p in runs) and not item.get("material"):
+            item["impact"].append("no placement in its year changes a classification")
+
+    last = window[-1]
+    after = month_span(month_span(last, (last[0] + 1, last[1]))[1], ym_of(a.as_of))
+    after_window = (f"Months {month_ranges(after)} (up to the report date) have no availability data and are not analysed [missing]."
+                    if after else "")
+
+    report = render(dict(
+        args=a, reg=reg, base=base, window=window, stays=[s for s in stays if s.months & set(window) or ym_of(s.check_in) in base],
+        inventory=inventory, build=build, avail_n=avail_n, blocked_n=blocked_n, dow_n=dow_n, orphan_n=orphan_n,
+        minstay_n=minstay_n, lead_n=lead_n, gaps=gaps, overlaps=overlaps, variant_results=variant_results,
+        class_changes=class_changes, after_window=after_window,
+    ))
+    a.out_dir.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(report + "\n", encoding="utf-8")
+    print(f"wrote {out_path} ({len(stays)} stays, {len(reg.items)} register issues)")
+
+
+if __name__ == "__main__":
+    main()
