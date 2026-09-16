@@ -29,7 +29,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**Clicks have only been classified since 2026-08-20 23:37 UTC** (ISS-36), and every panel below except *Recent clicks* counts classified browser clicks only, from consumer networks only. Empty panels mean no real clicks have landed since then, not a broken query \u2014 check *Recent clicks*, which is unfiltered.\n\nEarlier rows are still in the dataset and are deliberately not counted. The two weeks before that date are dominated by probes, DNS drain checks and crawlers following the booking link, and nothing in the row distinguishes those from a person."
+        "content": "**Clicks have only been classified since 2026-08-20 23:37 UTC** (ISS-36), and every panel below except *Recent clicks* counts classified browser clicks only, from consumer networks only. Empty panels mean no real clicks have landed since then, not a broken query \u2014 check *Recent clicks*, which is unfiltered.\n\nEarlier rows are still in the dataset and are deliberately not counted. The two weeks before that date are dominated by probes, DNS drain checks and crawlers following the booking link, and nothing in the row distinguishes those from a person.\n\nThe **Countries** dropdown above sets which visitor countries count as real; it defaults to CA and US, the only two RUM has ever recorded a visitor from. That correction is large -- it is most of the difference between a conversion rate above 100% and a believable one -- so whatever it removes is shown in *Excluded by the country filter* rather than simply disappearing (ISS-58)."
       }
     },
     {
@@ -95,7 +95,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'"
+          "query": "SELECT\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring})"
         }
       ],
       "description": "Excludes clicks classified as bots (blob5), the monitor canary, and the ISS-36 verification rows.\n\nCounts only clicks the Worker classified as coming from a browser, so the series starts on 2026-08-20. Rows written before that carry no verdict and are excluded rather than assumed human -- the two weeks before it are dominated by probes, DNS drain checks and crawler traffic, and there is no way to tell which of those rows were people. 'Recent clicks' is left unfiltered so the classifier can be audited.\n\nAlso excludes clicks whose network operator (blob7) is a cloud or datacenter host. The user-agent verdict in blob5 was not enough on its own: over 2026-08-18 to 2026-09-06 it passed 141 clicks as human while RUM saw 70 real visits, and about 80% of what it passed was a machine sending a browser string. This filter is applied at query time so it covers rows written before the Worker learned the same rule on 2026-09-15 (ISS-58). The list matches BOT_ASN_TERMS in the site repo's src/worker.js -- change one, change the other."
@@ -164,7 +164,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    $timeSeries AS t,\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\nGROUP BY src, t\nORDER BY t"
+          "query": "SELECT\n    $timeSeries AS t,\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring})\nGROUP BY src, t\nORDER BY t"
         }
       ]
     },
@@ -200,7 +200,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\nGROUP BY placement\nORDER BY clicks DESC"
+          "query": "SELECT\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring})\nGROUP BY placement\nORDER BY clicks DESC"
         }
       ],
       "options": {
@@ -257,7 +257,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    blob1 AS page,\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\nGROUP BY page, placement\nORDER BY clicks DESC"
+          "query": "SELECT\n    blob1 AS page,\n    if(blob4 IN ('', 'unknown'), 'no placement', blob4) AS placement,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring})\nGROUP BY page, placement\nORDER BY clicks DESC"
         }
       ],
       "options": {
@@ -458,7 +458,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\nGROUP BY src\nORDER BY clicks DESC"
+          "query": "SELECT\n    blob1 AS src,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring})\nGROUP BY src\nORDER BY clicks DESC"
         }
       ]
     },
@@ -471,7 +471,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 45
       },
       "panels": [],
       "fieldConfig": {
@@ -487,7 +487,7 @@
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 37
+        "y": 46
       },
       "datasource": {
         "type": "datasource",
@@ -510,7 +510,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%' AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day"
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring}) AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day"
         },
         {
           "refId": "B",
@@ -667,7 +667,7 @@
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 37
+        "y": 46
       },
       "datasource": {
         "type": "datasource",
@@ -690,7 +690,7 @@
           "round": "0s",
           "skip_comments": true,
           "extrapolate": false,
-          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%' AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day",
+          "query": "SELECT\n    toStartOfDay(timestamp) AS day,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 IN (${country:sqlstring}) AND blob4 NOT IN ('', 'unknown')\nGROUP BY day\nORDER BY day",
           "hide": true
         },
         {
@@ -807,6 +807,92 @@
           }
         ]
       }
+    },
+    {
+      "id": 21,
+      "type": "table",
+      "title": "Excluded by the country filter",
+      "datasource": {
+        "type": "vertamedia-clickhouse-datasource",
+        "uid": "cf-analytics-engine"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "description": "Clicks that survived every other filter and were dropped only for their country. This panel exists so that correction is never silent.\n\nAlmost all of it is scrapers: one byte-identical user agent accounts for 47 clicks across three countries, and the tail sends strings like Windows 98 and iPhone OS 4. But RUM cannot corroborate that for the EU -- Web Analytics is configured to exclude EU visitor data entirely -- so for those rows this panel is the only evidence there is.\n\nWhat to watch for: a country appearing here with varied user agents, a referer, and more than one page. That is a person, and the $country variable should be widened.",
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "clicks"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "vertamedia-clickhouse-datasource",
+            "uid": "cf-analytics-engine"
+          },
+          "format": "table",
+          "intervalFactor": 1,
+          "round": "0s",
+          "skip_comments": true,
+          "extrapolate": false,
+          "dateTimeColDataType": "timestamp",
+          "table": "booking_clicks",
+          "query": "SELECT\n    blob3 AS country,\n    blob7 AS network,\n    blob6 AS ua,\n    SUM(_sample_interval) AS clicks\nFROM booking_clicks\nWHERE $timeFilter AND blob5 = 'human' AND blob1 NOT IN ('/canary/', '/verify-iss36/')\n    AND blob7 NOT ILIKE '%google%'\n    AND blob7 NOT ILIKE '%cloud%'\n    AND blob7 NOT ILIKE '%amazon%'\n    AND blob7 NOT ILIKE '%aws%'\n    AND blob7 NOT ILIKE '%microsoft%'\n    AND blob7 NOT ILIKE '%azure%'\n    AND blob7 NOT ILIKE '%huawei%'\n    AND blob7 NOT ILIKE '%alibaba%'\n    AND blob7 NOT ILIKE '%aliyun%'\n    AND blob7 NOT ILIKE '%tencent%'\n    AND blob7 NOT ILIKE '%baidu%'\n    AND blob7 NOT ILIKE '%oracle%'\n    AND blob7 NOT ILIKE '%digitalocean%'\n    AND blob7 NOT ILIKE '%linode%'\n    AND blob7 NOT ILIKE '%akamai%'\n    AND blob7 NOT ILIKE '%fastly%'\n    AND blob7 NOT ILIKE '%ovh%'\n    AND blob7 NOT ILIKE '%hetzner%'\n    AND blob7 NOT ILIKE '%scaleway%'\n    AND blob7 NOT ILIKE '%vultr%'\n    AND blob7 NOT ILIKE '%choopa%'\n    AND blob7 NOT ILIKE '%contabo%'\n    AND blob7 NOT ILIKE '%leaseweb%'\n    AND blob7 NOT ILIKE '%m247%'\n    AND blob7 NOT ILIKE '%datacamp%'\n    AND blob7 NOT ILIKE '%blazing seo%'\n    AND blob7 NOT ILIKE '%rayobyte%'\n    AND blob7 NOT ILIKE '%censys%'\n    AND blob7 NOT ILIKE '%shodan%'\n    AND blob7 NOT ILIKE '%host%'\n    AND blob7 NOT ILIKE '%server%'\n    AND blob7 NOT ILIKE '%datacenter%'\n    AND blob7 NOT ILIKE '%data cent%'\n    AND blob7 NOT ILIKE '%colocation%'\n    AND blob7 NOT ILIKE '%vps%'\n    AND blob3 NOT IN (${country:sqlstring})\nGROUP BY country, network, ua\nORDER BY clicks DESC"
+        }
+      ]
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "country",
+        "label": "Countries",
+        "description": "Which visitor countries count as real (blob3). Defaults to CA and US, which is every country RUM has ever recorded a visitor from. It is a dropdown rather than a hardcoded filter so the correction stays visible and reversible -- and so the day genuine overseas traffic arrives, you can see it by widening this rather than by never noticing it was dropped. 'Excluded by the country filter' below shows what this is currently hiding.",
+        "datasource": {
+          "type": "vertamedia-clickhouse-datasource",
+          "uid": "cf-analytics-engine"
+        },
+        "query": "SELECT blob3 AS country FROM booking_clicks WHERE blob3 != '' GROUP BY country ORDER BY country",
+        "refresh": 1,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": [
+            "CA",
+            "US"
+          ],
+          "value": [
+            "CA",
+            "US"
+          ]
+        },
+        "options": []
+      }
+    ]
+  }
 }

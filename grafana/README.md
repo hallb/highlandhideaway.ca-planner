@@ -106,9 +106,32 @@ overstated. What remains is scrapers on consumer ISPs, arriving one at a time
 from FR, GB, DE, VN, BR, KE, IN, ZA, PH, RU, ID and AR — countries RUM records
 no visitors from at all.
 
-The country filter is what actually closes it, and it is not applied, because
-it would silently drop genuine overseas visitors the day the site has any.
-That is a decision rather than a fix. Tracked in ISS-58.
+The country filter is what actually closes it, and it **is** applied — as the
+**Countries** dropdown at the top of the dashboard, defaulting to `CA,US`,
+which is every country RUM has ever recorded a visitor from. With it on, the
+conversion panels read 27 clicks against 60 visits: the numerator is below the
+denominator for the first time.
+
+It is a variable rather than a hardcoded `AND blob3 IN (...)` for a reason. The
+objection to a country filter is real — it would drop a genuine overseas
+visitor the day the site has one, and today's zero is a fact about a
+three-week-old site rather than about the business. A dropdown answers that
+objection instead of accepting it: the correction is visible, it is reversible
+without editing SQL, and **Excluded by the country filter** shows exactly what
+it is currently hiding, so widening it is a decision someone can actually make.
+
+Check that panel before trusting the default. What to look for is a country
+with varied user agents, a referer and more than one page — that is a person.
+What is there today is not: one byte-identical user agent accounts for 47
+clicks across three countries, and the tail sends strings like `Windows 98`
+and `iPhone OS 4_3_5`.
+
+The EU deserves particular care here, because the evidence is weaker than it
+looks. Web Analytics is set to exclude EU visitor data, so RUM *cannot* record
+an EU visitor — "RUM sees nobody from France" is a statement about the
+configuration, not about France. 52 of the 194 operator-filtered clicks are
+EU. They look like machines on inspection (23 FR and 8 DE share one user agent
+string), but that panel is the only evidence there will ever be for them.
 
 The term list is duplicated in the site repo at `src/worker.js`
 (`BOT_ASN_TERMS`) because the Worker cannot read a panel and a panel cannot
