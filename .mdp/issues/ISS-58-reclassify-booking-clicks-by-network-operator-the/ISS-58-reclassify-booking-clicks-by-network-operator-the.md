@@ -18,10 +18,12 @@ relatedTo:
   - ISS-27
 checklist:
   - text: Exclude cloud and datacenter operators on blob7 in the Grafana conversion panels
-    done: false
+    done: true
   - text: Extend classifyAgent to weigh request.cf.asOrganization
     done: true
   - text: Re-check that the click numerator no longer exceeds RUM visits
+    done: true
+  - text: "Decide whether to apply a CA/US country filter -- it is what actually closes the gap, and it is Ben's call"
     done: false
 log:
   - timestamp: 2026-09-16T02:19:23.000Z
@@ -103,8 +105,64 @@ log:
       on a consumer ISP sending a browser string still reads as human. That is much
       smaller than what this removes, and blob6 and blob7 still carry the raw
       evidence, so a better rule can still be applied to this data.
+  - timestamp: 2026-09-16T02:39:36.000Z
+    author: claude
+    body: |-
+      Both halves are now done, and the measurement says they are not enough.
+
+      First, a correction to the entry above: I said the Grafana panels were in
+      Grafana Cloud and that the edit was Ben's. That was wrong. Grafana is local
+      and in this repo -- grafana/, a docker-compose stack with the dashboard
+      provisioned from grafana/dashboards/booking-clicks.json. I searched the site
+      repo, found nothing, and inferred the wrong answer instead of checking the
+      planner repo. Ben caught it.
+
+      Grafana side, done. All seven aggregate panels now carry a blob7 NOT ILIKE
+      chain; "Recent clicks" is deliberately left unfiltered so the classifier stays
+      auditable. Verified by running the "Clicks in range" query through Grafana's
+      own /api/ds/query rather than by reading the JSON: 194 where it returned 314.
+
+      Worker side, corrected. The first version of BOT_ASN was written from the
+      three operators this issue named plus generic terms from memory, and querying
+      the SQL API directly found it wrong in two ways. A word-boundary match on
+      "server" misses "FINE GROUP SERVERS SOLUTIONS LLC", 16 clicks. "Blazing SEO,
+      LLC" is 22 clicks and no generic term catches it -- a proxy seller, now
+      Rayobyte. Also "colo" as a substring matches Colombia, so the term has to be
+      "colocation". The list is now substrings chosen against the real rows, which
+      also makes it identical to the SQL chain rather than merely equivalent to it.
+
+      Now the number that matters. Over the window this issue was raised on,
+      2026-08-18 to 2026-09-06:
+
+      | Filter | Clicks |
+      |---|---|
+      | no filter | 707 |
+      | blob5 = 'human' | 140 |
+      | blob5 + operator | 121 |
+      | blob5 + operator + CA/US | 23 |
+
+      RUM saw 70 visits in that window. **The third acceptance criterion is not
+      met**: at 121 the numerator still exceeds the denominator, and the conversion
+      rate is still overstated. The operator filter removed 19 clicks from this
+      window, not the hundred it would have needed to.
+
+      What is left is not datacenters. It is scrapers on ordinary consumer ISPs,
+      arriving one at a time from FR, GB, DE, VN, BR, KE, IN, ZA, PH, RU, ID and AR
+      -- countries RUM records no visitors from at all. The operator cannot
+      distinguish those from a person, because on the operator they are a person.
+
+      The country filter is what closes it, and it takes the window to 23, which is
+      the figure this issue estimated at "about 25" from the other direction. It is
+      deliberately not applied. It would silently drop genuine overseas visitors the
+      day the site has one, and the reason it looks free today -- no overseas
+      visitors at all -- is a fact about a three-week-old site rather than about the
+      business. This issue already said that should be a separate decision, and it
+      is Ben's, so it is now a checklist item rather than a commit.
+
+      Staying In Progress until that is decided. Everything else here is done, and
+      the Worker change is still committed-not-deployed.
 createdAt: 2026-09-07T04:28:25.863Z
-updatedAt: 2026-09-16T02:29:01.000Z
+updatedAt: 2026-09-16T02:39:36.000Z
 ---
 
 ## Requirement

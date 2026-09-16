@@ -85,13 +85,36 @@ shipped. There is no earlier conversion history to recover.
 default in Cloudflare's own UI. This is not cosmetic: on 2026-08-20 it took
 visits from 19 to 9. Leaving it out halves the reported conversion rate.
 
-**Bots are not filtered out of clicks, and cannot be yet.** `src/worker.js`
-records every request to `/go/airbnb` whatever sent it, so the numerator
-contains machines and the denominator does not. Of the clicks in the fourteen
-days to 2026-08-20, 27 came from ZA and 9 from NL in bursts across many pages,
-seconds apart, with no referer — a crawler following the booking link on every
-page. That is about 16% of all rows. The rate is overstated by however much of
-the numerator is machines. Tracked in ISS-36.
+**Bots are filtered out of clicks twice, and it is still not enough.** The
+first filter is `blob5`, the Worker's verdict (ISS-36). The second is a chain
+of `blob7 NOT ILIKE` on every aggregate panel, excluding cloud and datacenter
+operators (ISS-58); it is applied at query time so it covers rows written
+before the Worker learned the same rule on 2026-09-15, which `blob5` cannot.
+
+Neither closes the gap. Measured over 2026-08-18 to 2026-09-06:
+
+| Filter | Clicks |
+| --- | --- |
+| no filter | 707 |
+| `blob5 = 'human'` | 140 |
+| `blob5` + operator | 121 |
+| `blob5` + operator + `blob3 IN ('CA','US')` | 23 |
+
+RUM saw **70 visits** in that window. So the numerator still exceeds the
+denominator at 121, and the conversion rate on this dashboard is still
+overstated. What remains is scrapers on consumer ISPs, arriving one at a time
+from FR, GB, DE, VN, BR, KE, IN, ZA, PH, RU, ID and AR — countries RUM records
+no visitors from at all.
+
+The country filter is what actually closes it, and it is not applied, because
+it would silently drop genuine overseas visitors the day the site has any.
+That is a decision rather than a fix. Tracked in ISS-58.
+
+The term list is duplicated in the site repo at `src/worker.js`
+(`BOT_ASN_TERMS`) because the Worker cannot read a panel and a panel cannot
+call the Worker. Change one, change the other. Note that Analytics Engine has
+no `match` and no `positionCaseInsensitive` — both return `unknown function
+call` — so the chain uses `ILIKE`.
 
 **EU visitors are absent entirely**, not undercounted. The Web Analytics site is
 set to "Enable, excluding visitor data in the EU", so nobody in the EU is
