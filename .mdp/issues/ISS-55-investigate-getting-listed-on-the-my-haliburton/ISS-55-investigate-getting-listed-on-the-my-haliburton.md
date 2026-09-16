@@ -2,7 +2,7 @@
 id: ISS-55
 title: Investigate getting listed on the My Haliburton Highlands cottage rentals directory
 type: task
-status: To Do
+status: Done
 priority: Medium
 labels: []
 assignee: null
@@ -30,8 +30,19 @@ log:
       The criteria hang on proof of registration under the October 2024 short-term rental rules and on an independent website carrying four specific things. The site meets two of them and misses owner contact details and any statement about adherence to local regulations. Whether the cottage is registered at all is not recorded anywhere on this board.
 
       Carried into ISS-56, which tracks getting listed. Nothing left here.
+  - timestamp: 2026-09-16T11:40:53.000Z
+    author: claude
+    body: |-
+      Closing this on 2026-09-16. It should have been closed on 2026-09-03 -- its
+      one checklist item was ticked and its own log ended "Nothing left here", but
+      the status was never moved. Caught while reviewing open issues at the end of
+      the session.
+
+      Nothing is lost by the delay: everything this issue found was carried into
+      ISS-56 at the time, and ISS-56 is now Done with the listing live and linking
+      to the apex domain.
 createdAt: 2026-09-03T02:07:38.007Z
-updatedAt: 2026-09-03T12:53:19.299Z
+updatedAt: 2026-09-16T11:40:53.000Z
 ---
 
 ## Requirement
