@@ -2,7 +2,7 @@
 id: ISS-58
 title: Reclassify booking clicks by network operator; the human verdict is 80% machines
 type: task
-status: To Do
+status: In Progress
 priority: High
 labels: []
 assignee: null
@@ -20,7 +20,7 @@ checklist:
   - text: Exclude cloud and datacenter operators on blob7 in the Grafana conversion panels
     done: false
   - text: Extend classifyAgent to weigh request.cf.asOrganization
-    done: false
+    done: true
   - text: Re-check that the click numerator no longer exceeds RUM visits
     done: false
 log:
@@ -59,8 +59,52 @@ log:
       it is making a pricing or channel decision on a number that is wrong by that
       much -- which is exactly the kind of decision ISS-61 is about to put in front
       of us.
+  - timestamp: 2026-09-16T02:29:01.000Z
+    author: claude
+    body: |-
+      Worker side done, 2026-09-15, site repo commit 401fd22. Not deployed yet --
+      Actions deploys on push to main and that push has not happened, so the live
+      Worker still carries the old rule.
+
+      `classifyAgent` now takes the operator as a second argument and tests it
+      against a new `BOT_ASN` regex: the three operators actually seen in the data
+      (Google LLC, Cloudflare, Huawei-Cloud-SG) plus generic terms -- cloud,
+      hosting, data centre, vps, colo, server -- so the long tail is caught without
+      an entry per host. Either test is sufficient; neither vetoes the other. A
+      declared bot on a consumer ISP stays a bot, and a missing operator leaves the
+      user-agent verdict standing rather than promoting anything to human.
+
+      ISS-36's blob rule is respected. blob5 keeps its position and still holds only
+      "bot" or "human", so every existing panel reads it unchanged -- only its
+      accuracy improves, and only from the deploy forward. That is recorded in
+      wrangler.toml beside the column list, because a panel spanning the deploy date
+      will show the rule getting better and could easily be misread as the traffic
+      changing.
+
+      26 operator cases added to script/test, 50 passing in total. They include the
+      exact Android Chrome string the 13 Google LLC clicks sent -- the case the
+      whole change exists for, since nothing about it is distinguishable from a real
+      phone except where it came from. The Canadian consumer carriers are pinned as
+      human on purpose: a false "bot" deletes a real booking click, which is the
+      expensive direction to be wrong in.
+
+      Two items still open, and the first is the one that actually repairs the
+      dashboard.
+
+      The Grafana panels are not in this repo -- they live in the Grafana Cloud
+      dashboard, so that edit is Ben's. It is also the more valuable half, because
+      it applies to rows already written and blob5 cannot be recomputed. The query
+      is written out in wrangler.toml next to the column list; it filters blob7 with
+      lower(...) NOT LIKE against the same short list BOT_ASN uses. That duplication
+      is deliberate and it is the kind that rots, which is why the shared list is
+      kept short and why both places say to change the other.
+
+      Known residue, stated so it is not discovered later as a surprise: a scraper
+      on a consumer ISP sending a browser string still reads as human. That is much
+      smaller than what this removes, and blob6 and blob7 still carry the raw
+      evidence, so a better rule can still be applied to this data.
 createdAt: 2026-09-07T04:28:25.863Z
-updatedAt: 2026-09-16T02:19:23.000Z
+updatedAt: 2026-09-16T02:29:01.000Z
 ---
 
 ## Requirement
