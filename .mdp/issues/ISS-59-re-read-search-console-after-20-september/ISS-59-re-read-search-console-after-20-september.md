@@ -16,6 +16,7 @@ relatedTo:
   - ISS-27
   - ISS-31
   - ISS-56
+  - ISS-58
 checklist:
   - text: Re-export the full ZIP on or after 2026-09-20 with the baseline settings
     done: false
@@ -23,9 +24,37 @@ checklist:
     done: false
   - text: Decide in writing whether query data can now order ISS-31
     done: false
-log: []
+  - text: While in the data, check whether the ISS-58 operator rule is reclassifying machines as intended
+    done: false
+log:
+  - timestamp: 2026-09-16T11:40:00.000Z
+    author: claude
+    body: |-
+      Two things to fold into this read when it happens, both dated 2026-09-15/16.
+
+      First, the reason to expect movement. Highland Hideaway is now listed on My
+      Haliburton Highlands and the entry links to the apex domain rather than to
+      Airbnb (ISS-56, closed). That is the site's first independent citation from an
+      established local directory, and the brand query is the number it should move:
+      average position 13 with 26 impressions and zero clicks is the baseline to
+      beat. Referral traffic from myhaliburtonhighlands.com should also start
+      appearing in Cloudflare RUM, which has recorded no referrals from anywhere at
+      all across its full retention.
+
+      Second, a free ride-along. ISS-58 deployed on 2026-09-16 and its operator rule
+      cannot be proven from here -- it needs machines arriving from datacenters to
+      exercise it, which only time supplies. This read already opens the same window,
+      so checking it costs nothing extra. What to look for: rows that would have
+      landed as blob5='human' now landing as 'bot'. Added as a checklist item rather
+      than left as an intention.
+
+      Worth knowing before reading the numbers: the site had no organic search
+      channel at all as of 2026-09-06, and both September event posts recorded zero
+      impressions. A flat result here is a real possibility and is not by itself
+      evidence that the directory listing failed -- a three-week-old domain and a
+      citation that is days old are both still young.
 createdAt: 2026-09-07T04:29:08.704Z
-updatedAt: 2026-09-07T04:29:08.704Z
+updatedAt: 2026-09-16T11:40:00.000Z
 ---
 
 ## Requirement
