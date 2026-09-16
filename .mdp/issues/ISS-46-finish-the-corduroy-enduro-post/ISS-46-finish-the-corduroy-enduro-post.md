@@ -65,8 +65,16 @@ log:
       Hike Haliburton 2026 runs 17 to 20 September, the Cord weekend exactly. Ben found the festival page and asked for it to go in. It sits in "Making a weekend of it" rather than anywhere near the racing, so nothing about the spectator content or the audience decision changes.
 
       This does not touch the two items still open here. The Friday GP question and the spectator maps were both still unresolved on 2026-08-31, and the event is now fifteen days out, so the window for the maps is nearly gone.
+  - timestamp: 2026-09-07T04:29:53.824Z
+    author: claude
+    body: |-
+      Timing finding from the 2026-09-06 Search Console export: this post will not rank in search for this year's event, and should be judged on other grounds.
+
+      It went live and entered the sitemap on 2026-08-31 with indexing requested by hand. As of 2026-09-06 it has recorded zero impressions -- it does not appear in the Pages report at all. The event runs 17-20 September, which leaves under two weeks on a property Google has known for under three.
+
+      This is not an argument against finishing it. It is an argument for finishing it as content for people already on the site and for returning visitors, and for treating any search value as accruing to next year's event rather than this one. /posts/fall-colours/ is in the same position with zero impressions, but fall colour interest runs to mid-October, so that one still has a runway this season.
 createdAt: 2026-08-22T13:25:53.466Z
-updatedAt: 2026-09-03T02:13:42.336Z
+updatedAt: 2026-09-07T04:29:53.824Z
 ---
 
 ## Requirement

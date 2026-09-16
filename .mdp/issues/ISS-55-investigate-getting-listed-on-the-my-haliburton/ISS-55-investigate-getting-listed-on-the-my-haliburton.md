@@ -15,12 +15,23 @@ parent: null
 relatedTo:
   - ISS-27
   - ISS-52
+  - ISS-56
 checklist:
   - text: Email tourism@myhaliburtonhighlands.com and ask how a property gets listed
-    done: false
-log: []
+    done: true
+log:
+  - timestamp: 2026-09-03T12:53:19.299Z
+    author: claude
+    body: |-
+      Answered 2026-09-03. Eric Casper replied from tourism@myhaliburtonhighlands.com pointing at https://myhaliburtonhighlands.com/inclusion-of-strs-on-mhh/, and said there is no cost and no membership required to be listed, assuming the eligibility criteria are met.
+
+      That page exists and is linked from nowhere obvious, which is why the 2026-09-02 check found no public route. It answers both questions this issue was opened on: half the cottage rentals page being owner-managed already answered whether a single rental fits, and the listing is free.
+
+      The criteria hang on proof of registration under the October 2024 short-term rental rules and on an independent website carrying four specific things. The site meets two of them and misses owner contact details and any statement about adherence to local regulations. Whether the cottage is registered at all is not recorded anywhere on this board.
+
+      Carried into ISS-56, which tracks getting listed. Nothing left here.
 createdAt: 2026-09-03T02:07:38.007Z
-updatedAt: 2026-09-03T02:07:38.007Z
+updatedAt: 2026-09-03T12:53:19.299Z
 ---
 
 ## Requirement

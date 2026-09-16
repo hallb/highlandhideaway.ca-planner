@@ -38,8 +38,11 @@ log:
       Independence from the Cord is stated on the page. The no-affiliation constraint on that post covers the Enduro, and adding a second event should not blur it.
 
       That is the only part of this issue that could pay off in 2026, and it is done. What is left is the 2027 decision: a proper post written in spring, against an annual event established in 2003 with a searchable name, or a section in what is nearby. The due date of 2026-09-16 now only covers checking whether the guided hikes are full before anybody relies on the paragraph.
+  - timestamp: 2026-09-07T04:29:54.159Z
+    author: claude
+    body: "Related timing finding, 2026-09-06: /posts/corduroy-enduro/ has recorded zero Search Console impressions in the six days since it was published and indexing was requested, so neither post covering the 17-20 September weekend will rank in search in time for this year. Scope this one as content for visitors already on the site rather than as a search play. Detail on ISS-46."
 createdAt: 2026-09-03T02:07:05.116Z
-updatedAt: 2026-09-03T02:13:42.134Z
+updatedAt: 2026-09-07T04:29:54.159Z
 ---
 
 ## Requirement
