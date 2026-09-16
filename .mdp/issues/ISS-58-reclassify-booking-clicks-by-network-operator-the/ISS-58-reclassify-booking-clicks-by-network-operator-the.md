@@ -2,7 +2,7 @@
 id: ISS-58
 title: Reclassify booking clicks by network operator; the human verdict is 80% machines
 type: task
-status: In Progress
+status: Done
 priority: High
 labels: []
 assignee: null
@@ -26,7 +26,7 @@ checklist:
   - text: "Decide whether to apply a CA/US country filter -- it is what actually closes the gap, and it is Ben's call"
     done: true
   - text: Deploy the Worker so new rows carry the better verdict
-    done: false
+    done: true
 log:
   - timestamp: 2026-09-16T02:19:23.000Z
     author: claude
@@ -211,8 +211,40 @@ log:
 
       Still In Progress for one reason only: the Worker is committed and not
       deployed.
+  - timestamp: 2026-09-16T11:13:42.000Z
+    author: claude
+    body: |-
+      Deployed and verified 2026-09-16. Closing.
+
+      Site commit 3864b77 went out through the Actions Cloudflare workflow, build
+      and deploy both green. The booking redirect was checked first, because it is
+      the thing that must never break: /go/airbnb still returns 302 to the Airbnb
+      listing with no-store intact, and the home, about and contact pages all serve
+      200.
+
+      The deployed Worker is confirmed writing rows, not just running. A test click
+      landed as: verdict=bot, cc=CA, net='Rogers Cable Inc. WLFDLE', ua='curl/8.18.0'.
+      That is a useful confirmation rather than a trivial one -- it exercises the
+      branch where a declared bot arrives from a consumer ISP and the operator test
+      must not promote it to human. It behaves in production as the tests say.
+
+      What that row does not prove is the new operator branch itself, which needs a
+      request from a datacenter to exercise and cannot be staged from here. The
+      evidence for that will be the next few days of rows: machines that used to
+      land as human should start landing as bot. Worth a look when ISS-59 re-reads
+      Search Console after 20 September, since both want the same window.
+
+      The test row carries src=/verify-deploy/ and is classified bot, so it is
+      already outside every aggregate panel without needing a new exclusion. It
+      stays visible in "Recent clicks", which is where a deploy verification
+      belongs.
+
+      All acceptance criteria met. The two caveats in the entry above stand and are
+      deliberately not being closed over: 45% is usable rather than believable, and
+      the exact-UA-across-countries rule remains available if the country default is
+      ever widened.
 createdAt: 2026-09-07T04:28:25.863Z
-updatedAt: 2026-09-16T05:42:18.000Z
+updatedAt: 2026-09-16T11:13:42.000Z
 ---
 
 ## Requirement
