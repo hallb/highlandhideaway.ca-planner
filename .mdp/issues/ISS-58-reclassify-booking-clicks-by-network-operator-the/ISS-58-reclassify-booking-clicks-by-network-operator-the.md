@@ -24,6 +24,8 @@ checklist:
   - text: Re-check that the click numerator no longer exceeds RUM visits
     done: true
   - text: "Decide whether to apply a CA/US country filter -- it is what actually closes the gap, and it is Ben's call"
+    done: true
+  - text: Deploy the Worker so new rows carry the better verdict
     done: false
 log:
   - timestamp: 2026-09-16T02:19:23.000Z
@@ -161,8 +163,56 @@ log:
 
       Staying In Progress until that is decided. Everything else here is done, and
       the Worker change is still committed-not-deployed.
+  - timestamp: 2026-09-16T05:42:18.000Z
+    author: claude
+    body: |-
+      Ben asked what including the country filter costs versus leaving it out, then
+      chose to apply it as a variable. Done 2026-09-15.
+
+      The measurement that settled it -- CTA clicks with a placement since
+      2026-08-20, against 60 RUM visits: 283 clicks and a 472% conversion rate on
+      blob5 alone, 185 and 308% with the operator filter, 27 and 45% with CA/US as
+      well. The country filter removes 85% of what survives everything else. It is
+      not a refinement, it is the whole remaining correction.
+
+      Its cost today is nothing measurable: RUM has recorded 80 visits across its
+      full three-month retention, 50 CA and 30 US, and nothing else at all.
+
+      But that evidence is circular for the EU, and it is worth writing down why.
+      Web Analytics is set to exclude EU visitor data, so RUM cannot record an EU
+      visitor -- "no visitors from France" describes the configuration, not France.
+      52 of the 194 operator-filtered clicks are EU. Inspecting them rather than
+      trusting the absence: 23 FR clicks (Private Customer) and 8 DE clicks (SIA
+      BITE Latvija) carry the same byte-identical user agent, one client on two
+      exits, and the tail sends Windows 98, Windows 95 and iPhone OS 4_3_5. Across
+      all 194 survivors one exact UA accounts for 47 clicks in three countries, and
+      128 distinct UA strings cover 194 clicks -- rotation, not a public.
+
+      So it is applied, as a `country` template variable defaulting to CA,US rather
+      than as hardcoded SQL, on all seven aggregate panels. The objection this issue
+      raised stands, and the dropdown answers it instead of accepting it: visible,
+      reversible without editing SQL, and paired with a new panel, "Excluded by the
+      country filter", showing what it currently hides. Verified through
+      /api/ds/query with the variable expanded -- 30 clicks kept, 164 excluded, 194
+      total. The arithmetic reconciles, which is the point: nothing disappears
+      unaccounted for.
+
+      All three original acceptance criteria are now met, including the third: the
+      numerator no longer exceeds the denominator.
+
+      Two honest caveats. 45% is still not a believable conversion rate for a
+      booking CTA -- single digits would be normal -- so this buys a usable number,
+      not yet a trustworthy one; either bots remain or the RUM denominator
+      undercounts. And a country-agnostic rule exists that I did not apply: exact-UA
+      strings appearing in three or more countries would remove 56 clicks without
+      ever touching a real overseas visitor. It helps and it does not close the gap
+      (185 - 56 = 129, still double the denominator), so it is worth having only if
+      the country default is ever widened.
+
+      Still In Progress for one reason only: the Worker is committed and not
+      deployed.
 createdAt: 2026-09-07T04:28:25.863Z
-updatedAt: 2026-09-16T02:39:36.000Z
+updatedAt: 2026-09-16T05:42:18.000Z
 ---
 
 ## Requirement
